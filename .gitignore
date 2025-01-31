@@ -1,3 +1,4 @@
 *.-code-workspace
 app/*/lib
 **/__pycache__
+**/fc_wifi.json
