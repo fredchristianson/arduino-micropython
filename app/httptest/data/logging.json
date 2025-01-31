@@ -1,0 +1,9 @@
+{
+    "levels":{
+        "default": "info",
+        "fc": "warning",
+        "fc.app": "debug",
+        "fc.net": "debug",
+        "fc.net.wifi": "debug"
+    }
+}
