@@ -1,0 +1,3 @@
+*.-code-workspace
+app/*/lib
+**/__pycache__
