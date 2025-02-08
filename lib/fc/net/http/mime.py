@@ -126,30 +126,48 @@ def is_ico(byte_array):
     return True
 
 def get_mime_type_from_content(content):
+    """requires someting to identify the content in the first 200 bytes.  'html' or '{' in a string
+    or image type bytes
+
+    Args:
+        content (str | bytes): content to look at
+
+    Returns:
+        str: a mime type
+    """
     try:
-        if content is None or len(content)==0:
+        if content is None or len(content)<10:
             log.info("Content is empty")
             return mime_types['.txt']
-        log.info(f"get mime type for {type(content)} {content[0:100]}")
+        log.info(f"get mime type for {type(content)} {content[0:200]}")
         # look at beginning 200 chars
+        scontent = None
+        bcontent = None
+        content = content[0:200]
+
         try:
-            begin = content.decode('utf-8')  if isinstance(content,bytes) else content 
-            begin = begin.strip(' \r\n\t')
+            scontent = content.decode('utf-8')  if isinstance(content,bytes) else content 
+            scontent = begin.strip(' \r\n\t')
         except Exception:
-            log.error("Cannot convert bytes to string")
-            begin = None
-        if begin is not None and '<html>' in begin:
+            pass
+                
+        try:
+            bcontent = memoryview(content.encode('utf-8') if isinstance(str) else content)
+        except Exception:
+            pass
+            
+        if scontent is not None and '<html>' in scontent:
             return mime_types['.html']
-        elif begin is not None and  (begin[0] == '{' or begin[0] == '['):
+        elif scontent is not None and  (scontent[0] == '{' or scontent[0] == '['):
             return mime_types['.json']
-        elif isinstance(content,bytes):
-            if is_jpeg(content):
+        elif isinstance(bcontent,bytes):
+            if is_jpeg(bcontent):
                 return mime_types['.jpeg']
-            elif is_gif(content):
+            elif is_gif(bcontent):
                 return mime_types['.gif']
-            elif is_png(content):
+            elif is_png(bcontent):
                 return mime_types['.png']
-            elif is_ico(content):
+            elif is_ico(bcontent):
                 return mime_types['.ico']
     except Exception as ex: 
         log.debug("cannot get mime type",exc_info=ex)

@@ -22,6 +22,8 @@ class RoutePath:
             dict[str,str]: any captured values in the path.  
         """
         values = {}
+        if len(self.parts) == 1 and self.parts[0] == '*':
+            return values
         parts = [p for p in  path.strip('/').split("/") if p != '']
         log.debug(f"match {parts} to {self.parts}")
         if len(parts) != len(self.parts):
@@ -115,8 +117,8 @@ class HttpRouter:
 class StaticFileRoute(HttpRoute):
     def __init__(self,directory,extensions):
         async def handle(req,resp):
-            await self.send_file(req,resp=resp)
-            return True
+            return await self.send_file(req,resp=resp)
+            
         super().__init__("*",handle,"GET")
         self.directory = directory
         self.extensions = extensions
@@ -148,14 +150,26 @@ class StaticFileRoute(HttpRoute):
                 ext = full_path[dot:]
                 log.debug(f"ext {ext}, mime {get_mime_type_from_ext(ext)}")
                 resp.content_type(get_mime_type_from_ext(ext))
+            blen = 1024
+            fstat  = os.stat(full_path)
+            flen = fstat[6]
+            log.debug(f"file flen {flen}.  send to {resp}")
+            resp.content_length(flen)
+            await resp.send_headers()
             with open(full_path,'rb') as file:
-                await resp.send(file.read())
+                data = file.read(blen)
+                while data:
+                    #log.debug(f"send data {data}")
+                    #log.debug(f"send len {len(data)}")
+                    await resp.send_data(memoryview(data))
+                    log.debug(f'sent {len(data)} bytes of data')
+                    data = file.read(blen)
                 log.debug("file sent")
         except Exception as ex:
             log.error(f"cannot read file {full_path}")
             log.exception("Exception",exc_info = ex)
             await resp.send_error(404,str(ex))
-        return None  # HttpRoute should not send anything
+        return None  # HttpRoute should not send anything since already sent
     
 class StaticFileRouter(HttpRouter):
     def __init__(self,dir='/html',extensions=['html','css','js','png','jpg','jpeg','gif','ico']):

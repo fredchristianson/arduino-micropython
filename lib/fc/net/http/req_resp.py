@@ -122,7 +122,7 @@ class HttpRequest(ReqResp):
     
     async def parse_request(self,reader):
         #log.debug(f"parse_request {reader}")
-        http = await asyncio.wait_for_ms(reader.readline(),500)
+        http = await asyncio.wait_for_ms(reader.readline(),5000)
         log.debug(f"read: {http}")
         log.debug(f"read: {http.decode()}")
         if http is None:
@@ -150,13 +150,13 @@ class HttpRequest(ReqResp):
         else:
             self.path = self.uri
         
-        next = await   asyncio.wait_for_ms(reader.readline(),500)
+        next = await   asyncio.wait_for_ms(reader.readline(),5000)
         next = next.decode()
         while next != "\r\n":
             log.debug(f"parse header {next}")
             parts = next.split(":")
             self.headers.set(parts[0].strip(),parts[1].strip())
-            next =   await asyncio.wait_for_ms(reader.readline(),500)
+            next =   await asyncio.wait_for_ms(reader.readline(),5000)
             next = next.decode()
         
 
@@ -195,6 +195,7 @@ class HttpResponse(ReqResp):
         self.headers = Headers()
         self.status_code = 200
         self.status_text = "OK"
+        self.content_len = None
         self.mime_type = None
         self.body = None
         
@@ -206,24 +207,41 @@ class HttpResponse(ReqResp):
     def content_type(self,mime_type):
         self.mime_type = mime_type
         
+    def content_length(self,len):
+        self.content_len = len
+        
+    async def send_headers(self):
+        log.debug('send headers')
+        if not self.headers.get('connection'):
+            self.headers.set('Connection','close')
+        w = self.writer
+        w.write(f"HTTP/1.1 {self.status_code} {self.status_text}\r\n".encode("utf-8"))
+        await w.drain()
+        if self.mime_type is not None:
+            self.headers.set_default('Content-Type',self.mime_type )
+        if self.content_len is not None:
+            self.headers.set_default('Content-Length',self.content_len )
+        for name,val in self.headers.items():
+            log.info(f"Header:  {name}={val}")
+            w.write(f"{name}: {val}\r\n".encode('utf-8'))
+        w.write(b"\r\n")       
+        log.debug('headers sent') 
+        
+    async def send_data(self,data):
+        log.debug(f"sending {len(data)} bytes of data")
+        self.writer.write(data)
+        await self.writer.drain()
+        
     async def send(self,page):
         try:
             log.debug("write: page")
-            if not self.headers.get('connection'):
-                self.headers.set('Connection','close')
-            w = self.writer
-            w.write(f"HTTP/1.1 {self.status_code} {self.status_text}\r\n".encode("utf-8"))
             if self.mime_type is None:
-                self.mime_type = get_mime_type_from_content(page)
-            self.headers.set_default('Content-Type',self.mime_type or 'text/plain' )
-            self.headers.set('Content-Length', len(page))
-            for name,val in self.headers.items():
-                log.info(f"Header:  {name}={val}")
-                w.write(f"{name}: {val}\r\n".encode('utf-8'))
-            w.write(b"\r\n")
+                self.mime_type = get_mime_type_from_content(page)            
             if type(page) == 'str':
                 log.debug("convert to utf-8")
                 page =page.encode('utf-8')
+            self.content_length(len(page))
+            await self.send_headers()
           
             log.info(f"write binary len {len(page)}")
             pos = 0
@@ -231,14 +249,10 @@ class HttpResponse(ReqResp):
             while pos < len(page):
                 # writing needs to allocate memory.  garbage or it can fail
                 gc.collect()
-                data = page[pos:pos+buflen]
+                data = memoryview(page[pos:pos+buflen])
                 log.info(f"write {len(data)} bytes at {pos}.  free = {gc.mem_free()}")
-                w.write(data)
+                await self.send_data(data)
                 log.info("wrote data")
-                #await w.drain() # wait for data to be sent or it can run out of mem
-                # await asyncio.sleep(0.01)
-                # await asyncio.wait_for_ms(w.drain(), timeout=5000)
-                #log.info("drained")
                 pos = pos + buflen
         except Exception as ex:
             log.exception("Cannot send data",exc_info=ex)

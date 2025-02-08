@@ -39,7 +39,7 @@ class App:
     async def _setup_wifi(self):
         from fc.net import Wifi
         self.wifi =  Wifi()
-        await self.wifi.connect(reconfig=True)   
+        await self.wifi.connect()   
         
 def run():
     log.info("run")

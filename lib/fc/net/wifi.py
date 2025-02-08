@@ -42,24 +42,26 @@ ap = None
 
 
 class WebConfig:
-    def __init__(self):
+    def __init__(self,message):
         global station
         global ap
         self.ssid = None
         self.password = None
         self.server = None
         self.stop_event = asyncio.Event()
-        if station is None:
-            station = WlanStation()
+        if ap is None:
             ap = WlanAccessPoint()
+            ap.active(True)
         self.nets = None
+        self.message = message
         
     async def get_form(self,req,resp):
         log.debug("get_form")
         nets = self.nets
         radios = ''.join([f"<label style='display:block'><input type='radio' name='ssid' value='{ssid}'/>{ssid}</label>" for ssid in nets])
         pw = "<label>Password: <input type='text' name='password'></label> "
-        page = f"<form method='POST'><div>{radios}</div><div>{pw}</div><div><input type='submit'/></div></form>"
+        msg = f"<div>{self.message}</div>" if self.message is not None else ""
+        page = f"{msg}<form method='POST'><div>{radios}</div><div>{pw}</div><div><input type='submit'/></div></form>"
         log.debug(f"Page: {page}")
         return page
         
@@ -118,7 +120,6 @@ class Wifi:
         
         if station is None:
             station = WlanStation()
-            ap = WlanAccessPoint()
         
     
     async def _check_connection(self):
@@ -129,7 +130,7 @@ class Wifi:
                 log.error("wifi connection lost.  reconnecting")
                 await station.connect()
                 
-    def load_config(self,filename='data/fc_wifi.json'):
+    def load_config(self,filename='/data/fc_wifi.json'):
         if not filename:
             log.warning("load_config needs a filename")
         try:
@@ -144,131 +145,66 @@ class Wifi:
             self.password = None
         return self.ssid is not None and type(self.ssid) == str and len(self.ssid)>0
     
-    def save_config(self,filename='data/fc_wifi.json'):
+    def save_config(self,filename='/data/fc_wifi.json'):
         if not filename:
             log.warning("save_config needs a filename")
+            return
         try:
-            with open('data/fc_wifi.json','w') as file:
-                json.dump({
+            with open(filename,'w') as file:
+                data = {
                     "ssid": self.ssid,
                     "password": self.password
-                },file)
-                config = json.load(file)
-                self.ssid = config['ssid'].strip() if 'ssid' in config else None
-                self.password = config['password'].strip()
-                log.debug(f"wifi ssid={self.ssid} password={self.password}")      
+                }
+                log.debug(f"data: {data}")
+                jdata = json.dumps(data)
+                log.debug(f"json: {jdata}")
+                json.dump(data,file)
+ 
         except Exception as ex:
-            log.error(f"cannot read wifi config {filename}")    
+            log.error(f"cannot write wifi config {filename}")    
+            log.exception("exception",exc_info=ex)
             self.ssid = None
             self.password = None
-        return self.ssid is not None and type(self.ssid) == str and len(self.ssid)>0
                                             
-    async def connect(self,ssid=None, password=None, reconfig=False,config_file='data/fc_wifi.json'):
+    async def connect(self,ssid=None, password=None, reconfig=False,config_file='/data/fc_wifi.json'):
         station.active(True)
-        saved = False
         if ssid is None and self.ssid is None:
             self.load_config(config_file)
-            saved = True
+        
+        message = "Select SSID"
             
         while reconfig or not station.isconnected():
             try:
                 if reconfig or (self.ssid is None or self.ssid==''):
-                    wconfig = WebConfig()
+                    wconfig = WebConfig(message)
                     self.ssid,self.password = await wconfig.run()
-                    log.debug(f"got ssid {self.ssid}, password {self.password}")
-                    saved = False
-                else: 
-                    try:
-                        station.connect(self.ssid,self.password)
-                    except Exception as ex:
-                        log.error(f"cannot connect to wifi {self.ssid}")
-                        log.exception("Exception",exc_info = ex)
-                        self.ssid = None
-                        self.password = None
-                        saved = False
-                    retry = 0
-                    while not station.isconnected() and retry < 10 and self.ssid is not None:
-                        log.info("wait for Wifi connection")
-                        await asyncio.sleep_ms(2000)
-                        log.info("waited 2 seconds")
-                    if not station.isconnected():
-                        log.error("Wifi connection failed.  run webconfig again")
-                        reconfig = True
-                    else:
-                        reconfig = False
+                    log.debug(f"got config ssid {self.ssid}, password {self.password}")
+                    self.save_config(config_file)
+                    reconfig = False
+                    message="Connect failed"
+                try:
+                    log.debug("station.connect()")
+                    station.connect(self.ssid,self.password)
+                except Exception as ex:
+                    log.error(f"cannot connect to wifi {self.ssid}")
+                    log.exception("Exception",exc_info = ex)
+                    self.ssid = None
+                    self.password = None
+                retry = 0
+                while not station.isconnected() and retry < 10 and self.ssid is not None:
+                    log.info("wait for Wifi connection")
+                    await asyncio.sleep_ms(2000)
+                    log.info("waited 2 seconds")
+                if not station.isconnected():
+                    log.error("Wifi connection failed.  run webconfig again")
+                    reconfig = True
+                else:
+                    reconfig = False
             except Exception as ex:
                 log.exception("wifi connect failed",exc_info=ex)
                             
         log.info(f"Wifi connected to {self.ssid}.  ip={station.get_ip_addr()}")
-        self.save_config(config_file)
+
         self.reconnect_task = asyncio.create_task(self._check_connection())
     
-    
-    ################## old code ##################    
-    def create_page(self,ssids):
-        log.debug(f"ssids: {ssids}")
-        radios = ''.join([f"<label style='display:block'><input type='radio' name='ssid' value='{ssid}'/>{ssid}</label>" for ssid in ssids])
-        pw = "<label>Password: <input type='text' name='password'></label> "
-        page = f"<form><div>{radios}</div><div>{pw}</div><div><input type='submit'/></div></form>"
-        return page
-    
-    async def handle_requests(self,ap):
-        server_socket = None
-        nets = ap.scan()
-        log.debug(f"Nets: {nets}")
-        ssids = sorted(set((n[0].decode('utf-8') for n in nets if len(n[0].decode('utf-8')) > 0)))
-        html = self.create_page(ssids)
-        try:
-            addr = socket.getaddrinfo('0.0.0.0',80)[0][-1]
-            server_socket = socket.socket()
-            server_socket.bind(addr)
-            server_socket.listen(1)
-            while self.ssid is None:
-                client,caddr = server_socket.accept()
-                client.settimeout(5)
-                req = ""
-                try:
-                    req += client.recv(1024).decode('utf-8')
-                    log.info(f"got req: {req}")
-                    match = ure.search("ssid=([^&]*)&password=(.*)", request)
-                                    
-                    if match is None:
-                        send_response(client, "Parameters not found", status_code=400)
-                        return False
-                    # version 1.9 compatibility
-                    try:
-                        ssid = match.group(1).decode("utf-8").replace("%3F", "?").replace("%21", "!")
-                        password = match.group(2).decode("utf-8").replace("%3F", "?").replace("%21", "!")
-                    except Exception:
-                        ssid = match.group(1).replace("%3F", "?").replace("%21", "!")
-                        password = match.group(2).replace("%3F", "?").replace("%21", "!")
-                    if 'GET' in req:
-                        client.sendall("HTTP/1.0 200 OK\r\n")
-                        client.sendall("Content-Type: text/html\r\n")
-                        client.sendall(f"Content-Length {len(html)}\r\n\r\n")
-                        client.sendall(html)
-                except Exception as ex:
-                    log.exception("failed to handle request",exc_info=ex)
-                finally:
-                    client.close()                        
-        except Exception as ex:
-            log.exception("failed to handle request",exc_info=ex)
-        finally:
-            if server_socket is not None:
-                log.debug("close socket")
-                server_socket.close()
-        
-    async def web_config(self):
-        ap = None
-        try:
-            ap = WLAN(network.AP_IF)
-            ap.active(True)
-            ssid = "config-"+ubinascii.hexlify(ap.config("mac")).decode('utf-8')
-            ap.config(essid=ssid,password='',authmode=network.AUTH_OPEN)
-            await self.handle_requests(ap)
-        except Exception as ex:
-            log.error("cannot create HTTP server for Wifi config")
-            log.exception("Exception",exc_info = ex)
-        finally:
-            ap.active(False)
-            ap.disconnect()
+  
