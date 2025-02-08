@@ -38,7 +38,7 @@ def getDefaultLevel():
 _loggers = {}
 _stream = sys.stderr
 #_default_fmt = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
-_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}:{message}"
+_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}: {message}"
 _default_datefmt = "%Y-%m-%d %H:%M:%S"
 
     

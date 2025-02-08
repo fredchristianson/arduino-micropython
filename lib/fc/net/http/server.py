@@ -1,0 +1,159 @@
+import logging
+import asyncio
+import os
+
+from fc.net.http.route import StaticFileRouter
+from fc.net.http.req_resp import HttpRequest,HttpResponse
+
+log = logging.getLogger("fc.net.http.server")
+
+class HttpServer:
+    def __init__(self,port=80,host='0.0.0.0'):
+        super().__init__()
+        log.info("HttpServer created")
+        self.port = port
+        self.host = host
+        self.routers = []
+        self.static_file_router = StaticFileRouter("/html")
+        self.tcp_server = None
+        self.connections = set()
+       
+     
+    def add_router(self,router,path_prefix="/"):
+        self.routers.append((path_prefix,router))
+
+    async def process_req_test(self,reader,writer):
+        """Process an incoming request.  """
+        self.connections.add(writer)
+        try:
+            # line = await reader.readline()
+            # print(f"got line {line}")
+            # print(f"got line {line.decode()}")
+            # return
+            log.debug("process_req")
+            req = HttpRequest(self)
+            resp = HttpResponse(self,writer)
+            req.set_response(resp)
+            resp.set_request(req)
+            log.debug("parse request")
+            with open('/html/wifi.jpg','rb') as file:
+                page = file.read()
+                log.debug("file sent")
+                
+                writer.write(f'HTTP/1.0 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: {len(page)}\r\n\r\n'.encode('utf-8'))
+                await writer.drain()
+                writer.write(page)  
+
+        except Exception as ex:
+            log.error("error processing request")
+            log.exception("Exception",exc_info = ex)
+            writer.write(b'HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nInternal Server Error\r\n')
+        
+        try:
+            await writer.drain()
+            log.info("sleep")
+            await asyncio.sleep(2)
+            log.info("delay done")
+            log.info("wait drain")
+            await asyncio.wait_for_ms(writer.drain(),2000)
+            
+            log.info("close")
+            writer.close()
+            log.info("wait close")
+            await asyncio.wait_for_ms(writer.wait_closed(),2000)
+            self.connections.remove(writer)
+            log.info("connection done")
+        except Exception as ex:
+            log.exception("Failed to close connection",exc_info=ex)
+                    
+    async def process_req(self,reader,writer):
+        """Process an incoming request.  """
+        self.connections.add(writer)
+        try:
+            # line = await reader.readline()
+            # print(f"got line {line}")
+            # print(f"got line {line.decode()}")
+            # return
+            log.debug("process_req")
+            req = HttpRequest(self)
+            resp = HttpResponse(self,writer)
+            req.set_response(resp)
+            resp.set_request(req)
+            log.debug("parse request")
+
+            if not await req.parse_request(reader):
+                writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
+            else:
+                path = req.get_path()
+                method = req.get_method()
+                log.debug(f"method: {method} path: {path}")
+                handled = False
+                for router in self.routers:
+                    log.debug("try router")
+                    rpath = router[0]
+                    if rpath != None and len(rpath)>1:
+                        if not path.startswith(rpath):
+                            log.info(f"{path} not in router path {rpath}")
+                            continue
+                        path = path[len(rpath):]
+                    rhandler = router[1]
+                    route_to = path
+                    handled = await rhandler.handle(route_to,req,resp)
+                    if handled:
+                        break
+                log.info(f"router handled request: {handled}")
+                if not handled:
+                    handled = await self.static_file_router.handle(path,req,resp)
+                    log.info(f"static file handled request: {handled}")
+                    
+                if not handled:
+                    handled = await self.static_file_router.handle('404.html',req,resp)
+                    log.info(f"404 handled: {handled}")
+                
+                if not handled:
+                    writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
+                        
+        except Exception as ex:
+            log.error("error processing request")
+            log.exception("Exception",exc_info = ex)
+            writer.write(b'HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nInternal Server Error\r\n')
+        try:
+            await writer.drain()
+            log.info("wait drain")
+            log.info("sleep")
+            await asyncio.sleep(1)
+            log.info("delay done")
+            await asyncio.wait_for_ms(writer.drain(),2000)
+            # log.info("close")
+            # writer.close()
+            # log.info("wait close")
+            # await asyncio.wait_for_ms(writer.wait_closed(),2000)
+            self.connections.remove(writer)
+            log.info("connection done")
+        except Exception as ex:
+            log.exception("Failed to close connection",exc_info=ex)
+                
+    async def start(self):
+        # run the app
+        log.info(f"start server {self.host}:{self.port}")
+        handler = self
+        async def callback(reader,writer): 
+            try:
+                log.debug("http callback")
+                await handler.process_req(reader,writer)
+                log.debug("callback done")
+            except Exception as ex:
+                log.exception("handler failed ",exc_info=ex)
+        self.tcp_server = await  asyncio.start_server(callback, self.host, self.port)
+
+        return self.tcp_server
+    
+    async def stop(self):
+        if self.tcp_server is None:
+            log.error("stop called without a running server") 
+            return
+        self.tcp_server.close()
+        for conn in list(self.connections):
+            await asyncio.wait_for_ms(conn.wait_closed(),2000)
+        await self.tcp_server.wait_closed()
+        self.tcp_server = None

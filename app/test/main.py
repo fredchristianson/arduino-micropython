@@ -1,29 +1,64 @@
-from time import sleep
-import json
-import logging
+import asyncio
+import network
+server = None
 
-log = logging.getLogger("main")
-log.setLevel(logging.DEBUG)
+def connect_wifi():
+    print("connecting to wifi")
+    wifi = network.WLAN(network.STA_IF)
+    wifi.active(True)
+    wifi.connect('5336iot', 'iotcorelli')
+    print("connected")
+    while not wifi.isconnected():
+        asyncio.sleep(1000)
+        print("check wifi")
+    print('network config:', wifi.ifconfig())
 
-print("Test main")
-def run(name):
-    a=1
+stop_request = asyncio.Event()
+    
+async def handle_client(reader, writer):
+    data = await reader.readline()
+    message = data.decode()
+    addr = writer.get_extra_info('peername')
+
+    print(f"Received {message!r} from {addr!r}")
+
+    if message.startswith('quit'):
+        # Send a response before stopping
+        writer.write(b'Server is stopping...\r\n')
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+        stop_request.set()
+    else:
+        writer.write(b'got ')
+        writer.write(bytearray(message, 'utf-8'))
+        await writer.drain()
+        writer.close()
+        await writer.wait_closed()
+
+
+   
+async def test(stop_request):
+    # occasionally stop the server to test it
     while True:
-        log.debug(f"log {name}={a}")
-        a += 1
-        sleep(1)
-        
-class App:
-    def __init__(self,n):
-        self.name = n
-    
-    def run(self):
-        run(self.name)
-        
-#app = App("test")
+        await asyncio.sleep(1)
+        print('requesting stop')
+        stop_request.set()
 
-with open("config.json") as file:
-    config = json.load(file)
-    log.info(config)
-    
-log.info("test log message")
+
+async def main():
+    global stop_request
+    connect_wifi()
+    stop_request.clear()
+    #asyncio.create_task(test(stop_request))
+    while True:
+        print('starting the server')
+        tcp_server =  await asyncio.start_server(handle_client, '0.0.0.0',8080)
+        
+        await stop_request.wait()
+        stop_request.clear()
+        print('stopping the server')
+        tcp_server.close()
+        await tcp_server.wait_closed()
+
+asyncio.run(main())
