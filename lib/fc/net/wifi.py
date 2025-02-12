@@ -78,12 +78,13 @@ class WebConfig:
         
     async def run(self):
         try:
+            from fc.app import App
             log.info("Wifi web config running")
             self.nets = station.scan_networks()
             log.debug(f"Nets: {self.nets}")
             ap.active(True)
-            
-            essid = "config-"+ubinascii.hexlify(ap.config("mac")).decode('utf-8')
+            aname = App.get().get_name()
+            essid = f"config-{aname}-{ap.get_ip_addr()}"
             ap.config(essid=essid,password='',authmode=network.AUTH_OPEN)
             server = HttpServer(port=8080,host='0.0.0.0')
             router = HttpRouter([
@@ -167,8 +168,9 @@ class Wifi:
             self.password = None
                                             
     async def connect(self,ssid=None, password=None, reconfig=False,config_file='/data/fc_wifi.json'):
+        log.info(f"Connect wifi reconfig={reconfig}")
         station.active(True)
-        if ssid is None and self.ssid is None:
+        if not reconfig and ssid is None and self.ssid is None:
             self.load_config(config_file)
         
         message = "Select SSID"
@@ -176,6 +178,7 @@ class Wifi:
         while reconfig or not station.isconnected():
             try:
                 if reconfig or (self.ssid is None or self.ssid==''):
+                    log.info("reconfig wifi")
                     wconfig = WebConfig(message)
                     self.ssid,self.password = await wconfig.run()
                     log.debug(f"got config ssid {self.ssid}, password {self.password}")

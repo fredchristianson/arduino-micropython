@@ -1,6 +1,6 @@
-from fc.app import App
+from fc.app import NetApp
 
-class HttpTestApp(App):
+class HttpTestApp(NetApp):
     def __init__(self):
-        super().__init__()
+        super().__init__("HttpTest")
         pass
