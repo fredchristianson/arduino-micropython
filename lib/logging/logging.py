@@ -4,6 +4,7 @@ import io
 import sys
 import time
 import json
+from datetime import datetime
 
 CRITICAL = const(50)
 ERROR = const(40)
@@ -38,8 +39,10 @@ def getDefaultLevel():
 _loggers = {}
 _stream = sys.stderr
 #_default_fmt = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
-_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}: {message}"
-_default_datefmt = "%Y-%m-%d %H:%M:%S"
+#_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}: {message}"
+_default_fmt = "{asctime:18}:{levelname:7}:{name:20}: {message}"
+#_default_datefmt = "%Y-%m-%d %H:%M:%S"
+_default_datefmt = "%H:%M:%S"
 
     
 def getLevelNumber(name):
@@ -132,9 +135,8 @@ class Formatter:
         return "asctime" in self.fmt
 
     def formatTime(self, datefmt, record):
-        if hasattr(time, "strftime"):
-            return time.strftime(datefmt, time.localtime(record.ct))
-        return None
+        now = datetime.now()
+        return now.format(_default_datefmt)
 
     def format(self, record):
         if self.usesTime():

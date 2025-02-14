@@ -614,12 +614,24 @@ class datetime:
     def tuple(self):
         d = _o2ymd(self._d)
         t = self._t.tuple()[1:]
-        return d + t + (self._tz.utcoffset_seconds())
+        return d + t   #+ (self._tz.utcoffset_seconds())
     
     def __add__(self, other):
         us = self._t._us + other._us
         d, us = divmod(us, 86_400_000_000)
         d += self._d
-        return datetime(0, 0, d, 0, 0, 0, us, self._tz)    
+        return datetime(0, 0, d, 0, 0, 0, us, self._tz)   
+    
+    def format(self,form):
+        t = self.tuple()
+        t2 = [('00'+str(v))[-2:] for v in t]
+        f = form.replace('%Y',str(t[0]))\
+                    .replace('%y',str(t[0]%1000))\
+                    .replace('%d',t2[2])\
+                    .replace('%m',t2[1])\
+                    .replace('%H',t2[3])\
+                    .replace('%M',t2[4])\
+                    .replace('%S',t2[5])
+        return f
 
 
