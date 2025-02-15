@@ -24,11 +24,13 @@ class NetApp(App):
         await self._setup_wifi()
         log.debug("wifi setup done")
         await NetTime.update()
-        log.debug("Time setup done")
+        log.debug("Time setup running")
         self.is_set_up = True
     
     async def _setup_wifi(self):
         from fc.net import Wifi
         self.wifi =  Wifi()
         await self.wifi.connect()   
+        
+
         

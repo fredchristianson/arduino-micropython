@@ -1,6 +1,6 @@
 import logging;
 import asyncio
-
+from machine import WDT
 
 log = logging.getLogger("fc.app")
 
@@ -28,6 +28,9 @@ class App:
     async def run(self):
         # run the app
         log.debug("run app")
+
+        asyncio.create_task(self._every_second())
+        self._wdt = WDT(timeout=30000)                 
         if not self.is_set_up:
             await self._setup()
         self.is_set_up = True
@@ -39,3 +42,8 @@ class App:
         # set up the app
         log.debug("setup app")
     
+    async def _every_second(self):
+        while True:
+            log.debug("every second")
+            self._wdt.feed()
+            await asyncio.sleep(1)

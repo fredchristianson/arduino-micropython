@@ -4,7 +4,12 @@ import io
 import sys
 import time
 import json
+import _thread
+import machine
 from datetime import datetime
+
+# secondary threads seem to have a small stack and can't do formats that require deep calls
+_primary_thread = _thread.get_ident()
 
 CRITICAL = const(50)
 ERROR = const(40)
@@ -40,7 +45,8 @@ _loggers = {}
 _stream = sys.stderr
 #_default_fmt = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 #_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}: {message}"
-_default_fmt = "{asctime:18}:{levelname:7}:{name:20}: {message}"
+#_default_fmt = "{asctime:18}:{thread}:{levelname:7}:{name:20}: {message}"
+_default_fmt = "{asctime:8}:{levelname:7}:{name:20}: {message}"
 #_default_datefmt = "%Y-%m-%d %H:%M:%S"
 _default_datefmt = "%H:%M:%S"
 
@@ -135,8 +141,14 @@ class Formatter:
         return "asctime" in self.fmt
 
     def formatTime(self, datefmt, record):
-        now = datetime.now()
-        return now.format(_default_datefmt)
+        # secondary threads run out of stack formating a datetime so use RTC for them
+        if _primary_thread == _thread.get_ident():
+            now = datetime.now()
+            return now.format(_default_datefmt)
+        else:
+            rtc = machine.RTC()
+            dt = rtc.datetime()
+            return f"{dt[4]}:{dt[5]}:{dt[6]}GMT"
 
     def format(self, record):
         if self.usesTime():
@@ -147,6 +159,7 @@ class Formatter:
             "secs": record.msecs/1000.0,
             "asctime": record.asctime,
             "levelname": record.levelname,
+            "thread": _thread.get_ident()
         })
 
 

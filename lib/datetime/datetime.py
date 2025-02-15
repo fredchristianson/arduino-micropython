@@ -622,7 +622,7 @@ class datetime:
         d += self._d
         return datetime(0, 0, d, 0, 0, 0, us, self._tz)   
     
-    def format(self,form):
+    def format(self,form="%Y/%m/%d %H:%M:%S"):
         t = self.tuple()
         t2 = [('00'+str(v))[-2:] for v in t]
         f = form.replace('%Y',str(t[0]))\
