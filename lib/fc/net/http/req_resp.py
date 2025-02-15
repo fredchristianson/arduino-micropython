@@ -1,6 +1,9 @@
 import asyncio
+import io
 from asyncio import StreamReader, StreamWriter
 import logging
+
+from .response_content import ResponseContent
 from .mime import get_mime_type_from_content
 import gc
 
@@ -112,6 +115,7 @@ class HttpRequest(ReqResp):
         self.json = None
         self.http_version = None
         self.body = None
+        self.path_values = {} # for paths like /test/:type/:id  type and id are path values
 
         
     def get_method(self):
@@ -120,6 +124,8 @@ class HttpRequest(ReqResp):
     def get_path(self):
         return self.path    
     
+    def set_path_values(self,vals):
+        self.path_values = vals or {}
     async def parse_request(self,reader):
         #log.debug(f"parse_request {reader}")
         http = await asyncio.wait_for_ms(reader.readline(),5000)
@@ -181,12 +187,14 @@ class HttpRequest(ReqResp):
     
     def get(self,name,default_value = None):
         """ try to get the name from params, data, headers.  the first value found is returned"""
-        val = self.params.get(name,default_value)
+        val = self.path_values[name] if name in self.path_values else None
         if val is None:
-            val = self.data.get(name,default_value)
+            val = self.params.get(name)
         if val is None:
-            val = self.headers.get(name,default_value)
-        return val
+            val = self.data.get(name)
+        if val is None:
+            val = self.headers.get(name)
+        return val or default_value
         
 class HttpResponse(ReqResp):
     def __init__(self,server,writer:StreamWriter):
@@ -231,31 +239,34 @@ class HttpResponse(ReqResp):
         log.debug(f"sending {len(data)} bytes of data")
         self.writer.write(data)
         await self.writer.drain()
+
         
-    async def send(self,page):
+    async def send_content(self,content):
         try:
             log.debug("write: page")
-            if self.mime_type is None:
-                self.mime_type = get_mime_type_from_content(page)            
-            if type(page) == 'str':
-                log.debug("convert to utf-8")
-                page =page.encode('utf-8')
-            self.content_length(len(page))
+            self.mime_type = content.get_mime_type()       
+            data = io.BytesIO(content.get_data())
+            data_len = content.get_length()
+            self.content_length(data_len)
             await self.send_headers()
           
-            log.info(f"write binary len {len(page)}")
-            pos = 0
-            buflen = int(gc.mem_free()/2)
-            while pos < len(page):
+            log.info(f"write binary len {data_len}")
+            buflen = 1024 # int(gc.mem_free()/2)
+            while data.tell() < data_len:
                 # writing needs to allocate memory.  garbage or it can fail
                 gc.collect()
-                data = memoryview(page[pos:pos+buflen])
-                log.info(f"write {len(data)} bytes at {pos}.  free = {gc.mem_free()}")
-                await self.send_data(data)
-                log.info("wrote data")
-                pos = pos + buflen
+                buf = data.read(buflen)
+                await self.send_data(buf)
+                log.info(f"wrote data len ={len(buf)}")
+            content.on_sent()
         except Exception as ex:
             log.exception("Cannot send data",exc_info=ex)
+ 
+        
+    async def send(self,content):
+        if not isinstance(content,ResponseContent):
+            content = ResponseContent(content)
+        await self.send_content(content)
             
     async def send_error(self,code,text="error"):
         log.debug("write error")

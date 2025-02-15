@@ -1,9 +1,8 @@
 import logging
 import asyncio
-import os
+from .route import StaticFileRouter
+from .req_resp import HttpRequest, HttpResponse
 
-from fc.net.http.route import StaticFileRouter
-from fc.net.http.req_resp import HttpRequest,HttpResponse
 
 log = logging.getLogger("fc.net.http.server")
 
@@ -18,53 +17,12 @@ class HttpServer:
         self.tcp_server = None
         self.connections = set()
        
+    def set_static_file_path(self,path):
+        self.static_file_router.set_directory_path(path)
      
     def add_router(self,router,path_prefix="/"):
-        self.routers.append((path_prefix,router))
-
-    async def process_req_test(self,reader,writer):
-        """Process an incoming request.  """
-        self.connections.add(writer)
-        try:
-            # line = await reader.readline()
-            # print(f"got line {line}")
-            # print(f"got line {line.decode()}")
-            # return
-            log.debug("process_req")
-            req = HttpRequest(self)
-            resp = HttpResponse(self,writer)
-            req.set_response(resp)
-            resp.set_request(req)
-            log.debug("parse request")
-            with open('/html/wifi.jpg','rb') as file:
-                page = file.read()
-                log.debug("file sent")
-                
-                writer.write(f'HTTP/1.0 200 OK\r\nContent-Type: image/jpeg\r\nContent-Length: {len(page)}\r\n\r\n'.encode('utf-8'))
-                await writer.drain()
-                writer.write(page)  
-
-        except Exception as ex:
-            log.error("error processing request")
-            log.exception("Exception",exc_info = ex)
-            writer.write(b'HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nInternal Server Error\r\n')
-        
-        try:
-            await writer.drain()
-            log.info("sleep")
-            await asyncio.sleep(2)
-            log.info("delay done")
-            log.info("wait drain")
-            await asyncio.wait_for_ms(writer.drain(),2000)
-            
-            log.info("close")
-            writer.close()
-            log.info("wait close")
-            await asyncio.wait_for_ms(writer.wait_closed(),2000)
-            self.connections.remove(writer)
-            log.info("connection done")
-        except Exception as ex:
-            log.exception("Failed to close connection",exc_info=ex)
+        # new routers go at the front to override earlier routes
+        self.routers.insert(0,(path_prefix,router))
                     
     async def process_req(self,reader,writer):
         """Process an incoming request.  """
@@ -103,6 +61,8 @@ class HttpServer:
                         break
                 log.info(f"router handled request: {handled}")
                 if not handled:
+                    if path == '/':
+                        path = '/index.html'
                     handled = await self.static_file_router.handle(path,req,resp)
                     log.info(f"static file handled request: {handled}")
                     

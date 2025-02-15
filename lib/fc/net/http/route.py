@@ -1,6 +1,7 @@
 import logging
 import os
 from fc.util import Path
+from lib.fc.net.http.req_resp import Values
 from .mime import get_mime_type_from_ext
 
 log = logging.getLogger("fc.net.http-server.route")
@@ -38,6 +39,9 @@ class RoutePath:
         log.debug(f"matched: {values}")
         return values
     
+    def get_path_values(self,path):
+        return self.match(path) if path is not None else {}
+    
     def __str__(self):
         return f"RoutePath {self.path} {self.parts}"
     
@@ -53,7 +57,9 @@ class HttpRoute:
     def is_match(self,path,req):
         return self.method.upper() == req.get_method() and self.path.match(path) is not None
     
-    def handle(self,req,resp):
+    def handle(self,req,resp,path=None):
+        values = self.path.get_path_values(path)
+        req.set_path_values(values)
         response = self.callback(req,resp)
         log.debug(f"response: {response}")
         return response
@@ -90,7 +96,10 @@ class HttpRouter:
                 self.add_route(HttpRoute(route[1],route[2],route[0]))
         
     def add_route(self,route):
-        self.routes.append(route)
+        """insert new routes at the front of the table so the take
+        priority over other routes.  this lets base classes add routes that
+        derived classes can override"""
+        self.routes.insert(0,route)
         
     def GET(self,url,callback):
         self.add_route(HttpRoute(url,callback,"GET"))
@@ -123,9 +132,15 @@ class StaticFileRoute(HttpRoute):
         self.directory = directory
         self.extensions = extensions
         
-    def match(self,path):
+    def set_root_path(self,path):
+        self.directory = path
+        
+    def is_match(self,path,req):
         log.info(f"StaticFileRoute match: {path}")
+        if req.get_method() != "GET":
+            return False
         if not '.' in path:
+            log.error("can only return paths with an extension")
             return False
         ext = path.split('.')[-1]
         if not ext in self.extensions:
@@ -141,8 +156,10 @@ class StaticFileRoute(HttpRoute):
     async def send_file(self,req,resp):
     
         log.debug(f"send file: {req}")
-        print(Path)
+
         full_path = Path.join(self.directory,req.get_path())
+        values = self.path.get_path_values(full_path)
+        req.set_path_values(Values)
         log.debug(f"path {full_path}")
         try:
             dot = full_path.rfind('.')
@@ -172,9 +189,14 @@ class StaticFileRoute(HttpRoute):
         return None  # HttpRoute should not send anything since already sent
     
 class StaticFileRouter(HttpRouter):
-    def __init__(self,dir='/html',extensions=['html','css','js','png','jpg','jpeg','gif','ico']):
+    def __init__(self,dir='/html', extensions=['html','css','js','png','jpg','jpeg','gif','ico']):
         super().__init__([])
         self.extensions = extensions
-        self.add_route(StaticFileRoute(dir,extensions))
+        self.route = StaticFileRoute(dir,extensions)
+        self.add_route(self.route)
+        
+    def set_root_path(self,path):
+        self.route.set_root_path(path)
+        
         
 

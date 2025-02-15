@@ -11,22 +11,26 @@ from datetime import datetime
 # secondary threads seem to have a small stack and can't do formats that require deep calls
 _primary_thread = _thread.get_ident()
 
+ALWAYS = const(100)
 CRITICAL = const(50)
 ERROR = const(40)
 WARNING = const(30)
 INFO = const(20)
 DEBUG = const(10)
 NOTSET = const(0)
+NEVER = const(-1)
 
 _DEFAULT_LEVEL = WARNING
 
 _level_dict = {
+    ALWAYS:"ALWAYS",
     CRITICAL: "CRITICAL",
     ERROR: "ERROR",
     WARNING: "WARNING",
     INFO: "INFO",
     DEBUG: "DEBUG",
     NOTSET: "NOTSET",
+    NEVER:"NEVER"
 }
 
 ld = _level_dict
@@ -196,6 +200,12 @@ class Logger:
                 #print(f"emit {level}")
                 h.emit(self.record)
 
+    def always(self, msg, *args):
+        self.log(ALWAYS, msg, *args)
+        
+    def never(self, msg, *args):
+        self.log(NEVER, msg, *args)
+        
     def debug(self, msg, *args):
         self.log(DEBUG, msg, *args)
 

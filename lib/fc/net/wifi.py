@@ -1,4 +1,4 @@
-from fc.net.http import HttpServer,HttpRouter
+
 import ubinascii
 import socket
 import json
@@ -79,6 +79,7 @@ class WebConfig:
     async def run(self):
         try:
             from fc.app import App
+            from fc.net.http import HttpServer, HttpRouter
             log.info("Wifi web config running")
             self.nets = station.scan_networks()
             log.debug(f"Nets: {self.nets}")
