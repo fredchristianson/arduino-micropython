@@ -139,7 +139,7 @@ def get_mime_type_from_content(content):
         if content is None or len(content)<10:
             log.info("Content is empty")
             return mime_types['.txt']
-        log.info(f"get mime type for {type(content)} {content[0:200]}")
+        log.info(f"get mime type for {type(content)} {content[0:20]}")
         # look at beginning 200 chars
         scontent = None
         bcontent = None
@@ -147,30 +147,30 @@ def get_mime_type_from_content(content):
 
         try:
             scontent = content.decode('utf-8')  if isinstance(content,bytes) else content 
-            scontent = begin.strip(' \r\n\t')
+            scontent = scontent.strip(' \r\n\t')
         except Exception:
             pass
                 
         try:
-            bcontent = memoryview(content.encode('utf-8') if isinstance(str) else content)
+            bcontent = memoryview(content.encode('utf-8') if isinstance(content,str) else content)
         except Exception:
             pass
             
         if scontent is not None and '<html>' in scontent:
-            return mime_types['.html']
+            return get_mime_type_from_ext('.html')
         elif scontent is not None and  (scontent[0] == '{' or scontent[0] == '['):
-            return mime_types['.json']
+            return get_mime_type_from_ext('.json')
         elif isinstance(bcontent,bytes):
             if is_jpeg(bcontent):
-                return mime_types['.jpeg']
+                return get_mime_type_from_ext('.jpeg')
             elif is_gif(bcontent):
-                return mime_types['.gif']
+                return get_mime_type_from_ext('.gif')
             elif is_png(bcontent):
-                return mime_types['.png']
+                return get_mime_type_from_ext('.png')
             elif is_ico(bcontent):
-                return mime_types['.ico']
+                return get_mime_type_from_ext('.ico')
     except Exception as ex: 
-        log.debug("cannot get mime type",exc_info=ex)
+        log.exception("cannot get mime type",exc_info=ex)
     return mime_types['.txt']
 
 def get_mime_type_from_ext(ext, default_type = None):

@@ -4,14 +4,14 @@ from fc.util import Path
 from lib.fc.net.http.req_resp import Values
 from .mime import get_mime_type_from_ext
 
-log = logging.getLogger("fc.net.http-server.route")
+log = logging.getLogger("fc.net.http.route")
 
 class RoutePath:
     def __init__(self,path) -> None:
         self.path = path
         self.parts = [p for p in path.strip('/').split("/") if p != '']
         
-    def match(self,path,request=None):
+    def match(self,path):
         """try to match a path.  return None if no match, otherwise return a dictionary of values.
         A route path like '/api/:name/:id' will match '/api/joe/123' and return 
         {'name':'joe','id':'123'}.
@@ -54,8 +54,15 @@ class HttpRoute:
         self.callback = callback
         self.method = method.upper() if method is not None else "*"
         
-    def is_match(self,path,req):
-        return self.method.upper() == req.get_method() and self.path.match(path) is not None
+    def is_match(self,req):
+        path = req.get_path()
+        if self.method.upper() != req.get_method():
+            return False
+        values = self.path.match(path)
+        if values is not None:
+            req.set_path_values(values)
+            return True
+        return False
     
     def handle(self,req,resp,path=None):
         values = self.path.get_path_values(path)
@@ -63,6 +70,7 @@ class HttpRoute:
         response = self.callback(req,resp)
         log.debug(f"response: {response}")
         return response
+
         
     def __str__(self):
         return f"HttpRoute {self.path}"        
@@ -96,10 +104,7 @@ class HttpRouter:
                 self.add_route(HttpRoute(route[1],route[2],route[0]))
         
     def add_route(self,route):
-        """insert new routes at the front of the table so the take
-        priority over other routes.  this lets base classes add routes that
-        derived classes can override"""
-        self.routes.insert(0,route)
+        self.routes.append(route)
         
     def GET(self,url,callback):
         self.add_route(HttpRoute(url,callback,"GET"))
@@ -107,18 +112,17 @@ class HttpRouter:
     def POST(self,url,callback):
         self.add_route(HttpRoute(url,callback,"POST"))
         
-    async def handle(self,path,req,resp):
+    async def handle(self,req,resp):
+        path = req.get_path()
         log.debug(f"{self.__class__.__name__}: Handle route {path} {resp}")
         for route in self.routes:
             log.debug(f"try {route}")            
-            if route.is_match(path,req):
+            if route.is_match(req):
                 log.debug("found match")
-                page = await route.handle(req,resp)
-                log.info(f"got: {page}")
-                if page is not None:
-                    resp.status(200)
-                    resp.content_type("text/html")
-                    await resp.send(page)
+                content = await route.handle(req,resp)
+                log.info(f"got: {content[0:20]}")
+                if content is not None:
+                    await resp.send(content)
                 return True
         return False
         
@@ -135,8 +139,9 @@ class StaticFileRoute(HttpRoute):
     def set_root_path(self,path):
         self.directory = path
         
-    def is_match(self,path,req):
-        log.info(f"StaticFileRoute match: {path}")
+    def is_match(self,req):
+        path = req.get_path()
+        log.info(f"StaticFileRoute is_match: {path}")
         if req.get_method() != "GET":
             return False
         if not '.' in path:
@@ -148,9 +153,10 @@ class StaticFileRoute(HttpRoute):
         full_path = Path.join(self.directory,path)
         log.debug(f"full path: {full_path}")
         try:
-            os.stat.exists(full_path)
+            os.stat(full_path)
             return True
         except:
+            log.error(f"File {full_path} does not exist")
             return False
         
     async def send_file(self,req,resp):

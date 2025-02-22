@@ -7,7 +7,7 @@ from .response_content import ResponseContent
 from .mime import get_mime_type_from_content
 import gc
 
-log = logging.getLogger("fc.net.http-server.req_resp")
+log = logging.getLogger("fc.net.http.server.req_resp")
 
         
 def urldecode(encoded_str):
@@ -124,6 +124,8 @@ class HttpRequest(ReqResp):
     def get_path(self):
         return self.path    
     
+    def set_path(self,path):
+        self.path = path
     def set_path_values(self,vals):
         self.path_values = vals or {}
     async def parse_request(self,reader):
@@ -246,8 +248,11 @@ class HttpResponse(ReqResp):
             log.debug("write: page")
             self.mime_type = content.get_mime_type()       
             data = io.BytesIO(content.get_data())
+            log.debug(f"Mime type %s",self.mime_type)
             data_len = content.get_length()
+            log.debug(f"Data len %d",data_len)
             self.content_length(data_len)
+            log.debug("send headers")
             await self.send_headers()
           
             log.info(f"write binary len {data_len}")
@@ -264,8 +269,9 @@ class HttpResponse(ReqResp):
  
         
     async def send(self,content):
+        log.info(f"send content: {content[0:20]}")
         if not isinstance(content,ResponseContent):
-            content = ResponseContent(content)
+            content = ResponseContent(content = content)
         await self.send_content(content)
             
     async def send_error(self,code,text="error"):

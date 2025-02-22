@@ -43,11 +43,13 @@ class HttpServer:
                 writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
             else:
                 path = req.get_path()
+                orig_path = path
                 method = req.get_method()
                 log.debug(f"method: {method} path: {path}")
                 handled = False
                 for router in self.routers:
                     log.debug("try router")
+                    path = orig_path
                     rpath = router[0]
                     if rpath != None and len(rpath)>1:
                         if not path.startswith(rpath):
@@ -55,19 +57,21 @@ class HttpServer:
                             continue
                         path = path[len(rpath):]
                     rhandler = router[1]
-                    route_to = path
-                    handled = await rhandler.handle(route_to,req,resp)
+                    req.set_path(path)
+                    handled = await rhandler.handle(req,resp)
                     if handled:
                         break
                 log.info(f"router handled request: {handled}")
                 if not handled:
                     if path == '/':
                         path = '/index.html'
-                    handled = await self.static_file_router.handle(path,req,resp)
+                        req.set_path('/index.html')
+                    handled = await self.static_file_router.handle(req,resp)
                     log.info(f"static file handled request: {handled}")
                     
                 if not handled:
-                    handled = await self.static_file_router.handle('404.html',req,resp)
+                    req.set_path('/404.html')
+                    handled = await self.static_file_router.handle(req,resp)
                     log.info(f"404 handled: {handled}")
                 
                 if not handled:
@@ -80,18 +84,21 @@ class HttpServer:
         try:
             await writer.drain()
             log.info("wait drain")
-            log.info("sleep")
             await asyncio.sleep(1)
             log.info("delay done")
-            await asyncio.wait_for_ms(writer.drain(),2000)
-            # log.info("close")
-            # writer.close()
-            # log.info("wait close")
-            # await asyncio.wait_for_ms(writer.wait_closed(),2000)
-            self.connections.remove(writer)
+            await writer.drain()
+
+            log.info("close")
+            writer.close()
+            log.info("wait close")
+            await writer.wait_closed()
+
             log.info("connection done")
         except Exception as ex:
             log.exception("Failed to close connection",exc_info=ex)
+        finally:
+            self.connections.remove(writer)
+                        
                 
     async def start(self):
         # run the app

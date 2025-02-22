@@ -1,6 +1,7 @@
 import logging;
 import asyncio
 from machine import WDT
+import gc
 
 log = logging.getLogger("fc.app")
 
@@ -18,7 +19,12 @@ class App:
         self.name = name
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(lambda loop,context: self.exception_handler(loop,context))
+        self._uptime_seconds = 0
         self._debug = True
+        # TODO: allow gc threshold to be set in config
+        gc.threshold(1024*32)
+        gc.collect()
+        
         
     def get_name(self):
         return self.name
@@ -49,6 +55,7 @@ class App:
     async def _every_second(self):
         while True:
             log.never("every second")
+            self._uptime_seconds += 1
             if not self._debug:
                 self._wdt.feed()
             await asyncio.sleep(1)

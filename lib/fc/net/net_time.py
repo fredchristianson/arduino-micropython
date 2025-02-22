@@ -2,7 +2,7 @@
 import urequests
 import ntptime
 import _thread
-from datetime import datetime,timezone,timedelta
+from fc.datetime import datetime,timedelta
 import logging
 log = logging.getLogger("fc.time")
 
@@ -38,11 +38,14 @@ def update_timezone(cls):
     
             
 def update_time(cls):
-    if cls.tz is None:
-        update_timezone(cls)
-    ntptime.settime()
-    now = datetime.now() 
-    log.info(f"Time is configured {now.format()}")
+    try:
+        if cls.tz is None:
+            update_timezone(cls)
+        ntptime.settime()
+        now = datetime.now() 
+        log.info(f"Time is configured {now.format()}")
+    except Exception as ex:
+        log.exception("Failed to update network time",exc_info=ex)
         
 
         

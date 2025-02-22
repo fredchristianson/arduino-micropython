@@ -1,9 +1,9 @@
 import logging;
 import asyncio
 from .app import App
-
-
-
+from fc.net.http.html_response import *
+from fc.net.wifi import wifi_connect, wifi_web_configure
+import gc
 
 log = logging.getLogger("fc.netapp")
 
@@ -13,14 +13,10 @@ class NetApp(App):
     def __init__(self, name="<unnamed app>"):
         super().__init__(name)
         log.info(f"NetApp created {name}")
-        self._wifi = None
         self._http = None
         self._sys_router = None
         self._app_router = None
    
-    def get_wifi(self): 
-        return self._wifi
-           
     def get_http_server(self): 
         return self._http
         
@@ -39,16 +35,22 @@ class NetApp(App):
             self._http = HttpServer(port)
             self._sys_router = HttpRouter()
             self._sys_router.GET("/sys/status",self.status_page)
+            self._sys_router.GET("/sys/config",self.config_page)
+            self._sys_router.GET("/sys/uptime",self.uptime_page)
             self._sys_router.GET("/sys/:name",self.other_page)
             self._app_router = HttpRouter()
+            self._http.add_router(self._sys_router)
+            self._http.add_router(self._app_router)
             self.setup_routes(self._app_router)
             await self._http.start()
         self.is_set_up = True
     
     async def _setup_wifi(self):
-        from fc.net import Wifi
-        self._wifi =  Wifi()
-        await self._wifi.connect()   
+        log.info("setup wifi")
+        gc.collect()
+        
+        while not await wifi_connect(self.get_name()):
+            await wifi_web_configure(self.get_name())
         
     def get_http_port(self):
         """derived class can override to change the port
@@ -63,9 +65,22 @@ class NetApp(App):
         if needed, they can use get_http_server() to get the server and add additional routers"""
         pass
         
-    def status_page(self,req,resp):
-        return Html("test")
+    async def status_page(self,req,resp):
+        from fc.net.http import Html
+        return Html("test <b>html</b> response")
         
-    def other_page(self,req,resp):
+    async def config_page(self,req,resp):
+        return "config content <b>goes</b> here"
+           
+    async def uptime_page(self,req,resp):
+        secs = self._uptime_seconds
+        min = (secs//60)%60
+        hours = (secs//(60*60))%(60*60)
+        days = (secs//(24*60*60))%(24*60*60)
+        
+        return f"<html><body>Uptime: <b>{days} days {hours} hours {min} minutes {secs%60} seconds.  Total seconds = {secs}</body></html"
+        
+    async def other_page(self,req,resp):
+        from fc.net.http import Json
         value = req.get('name')
-        return {"name":value, "test":123}
+        return Json({"name":value, "test":123})

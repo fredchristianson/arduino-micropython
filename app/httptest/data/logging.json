@@ -6,6 +6,7 @@
         "fc.net": "debug",
         "fc.net.wifi": "debug",
         "fc.net.time": "debug",
-        "fc.net.http-server.req_resp": "info"
+        "fc.net.http": "debug",
+        "fc.net.http.server.req_resp": "debug"
     }
 }
