@@ -5,6 +5,7 @@ from .req_resp import HttpRequest, HttpResponse
 
 
 log = logging.getLogger("fc.net.http.server")
+request_id = 0
 
 class HttpServer:
     def __init__(self,port=80,host='0.0.0.0'):
@@ -40,7 +41,11 @@ class HttpServer:
             log.debug("parse request")
 
             if not await req.parse_request(reader):
-                writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
+                try:
+                    writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
+                except Exception as ex:
+                    log.exception("cannot write 4040 response",ex)
+                    return
             else:
                 path = req.get_path()
                 orig_path = path
@@ -75,8 +80,11 @@ class HttpServer:
                     log.info(f"404 handled: {handled}")
                 
                 if not handled:
-                    writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
-                        
+                    try:
+                        writer.write(b'HTTP/1.0 404 not found\r\nContent-Type: text/plain\r\n\r\nFile Not Found\r\n')   
+                    except Exception as ex:
+                        log.exception("cannot write 4040 response",ex)
+                        return                        
         except Exception as ex:
             log.error("error processing request")
             log.exception("Exception",exc_info = ex)
@@ -119,8 +127,8 @@ class HttpServer:
         if self.tcp_server is None:
             log.error("stop called without a running server") 
             return
-        self.tcp_server.close()
         for conn in list(self.connections):
             await asyncio.wait_for_ms(conn.wait_closed(),2000)
+        self.tcp_server.close()
         await self.tcp_server.wait_closed()
         self.tcp_server = None

@@ -6,7 +6,7 @@ import time
 import json
 import _thread
 import machine
-from datetime import datetime
+from fc.datetime import datetime
 
 # secondary threads seem to have a small stack and can't do formats that require deep calls
 _primary_thread = _thread.get_ident()

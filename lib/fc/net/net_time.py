@@ -29,10 +29,11 @@ def update_timezone(cls):
         cls.is_dst = wtime['dst']
         cls.dst_offset = timedelta(hours=1) if cls.is_dst else timedelta(hours=0)
         cls.gmt_offset = get_timedelta(wtime['utc_offset'])
-        tz = timezone(cls.gmt_offset,cls.is_dst,wtime['timezone'],wtime['abbreviation'],cls.dst_offset)
-        timezone.set_default(tz)
-        log.info(f"got timezone {tz} {tz.isoformat()}")
-        cls.tz = tz
+        #tz = timezone(cls.gmt_offset,cls.is_dst,wtime['timezone'],wtime['abbreviation'],cls.dst_offset)
+        offset = cls.dst_offset + cls.gmt_offset
+        log.info(f"gmt offset {cls.gmt_offset}  dstoffset {cls.dst_offset}.  total offset {offset}")
+        datetime.set_tzoffset_minutes(offset)
+        log.info(f"got datetime offset {offset}")
     else:
         log.error("failed to get http://worldtimeapi.org")
     

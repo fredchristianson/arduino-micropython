@@ -1,7 +1,6 @@
 import logging;
 import asyncio
 from .app import App
-from fc.net.http.html_response import *
 from fc.net.wifi import wifi_connect, wifi_web_configure
 import gc
 
@@ -29,7 +28,7 @@ class NetApp(App):
         await NetTime.update()
         log.debug("Time setup running")
         port = self.get_http_port()
-        if port is not None:
+        if port is not None:       
             log.info(f"setup HTTP server on port {port}")
             from fc.net.http import HttpServer, HttpRouter, HttpRoute, Html, Json
             self._http = HttpServer(port)
@@ -49,7 +48,7 @@ class NetApp(App):
         log.info("setup wifi")
         gc.collect()
         
-        while not await wifi_connect(self.get_name()):
+        while not await wifi_connect(self.get_name(),15,delay_seconds=2):
             await wifi_web_configure(self.get_name())
         
     def get_http_port(self):

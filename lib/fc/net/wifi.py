@@ -9,7 +9,7 @@ log = logging.getLogger('fc.net.wifi')
 
 station:WLAN = WLAN(STA_IF)
 ap:WLAN = WLAN(AP_IF)
-
+station.active(True)
 _ssid=None
 _password = None
 
@@ -28,6 +28,7 @@ def scan_networks():
     return sorted(set((n[0].decode('utf-8') for n in nets if len(n[0].decode('utf-8')) > 0)))     
     
 def load_config(filename='/data/fc_wifi.json'):
+    global _ssid, _password    
     if not filename:
         log.warning("load_config needs a filename")
     try:
@@ -64,20 +65,22 @@ def save_config(filename='/data/fc_wifi.json'):
         _ssid = None
         _password = None      
         
-async def wifi_connect(retries=5, delay_seconds=2):
+async def wifi_connect(app_name,retries=5, delay_seconds=2):
     global _ssid, _password,station
+    log.debug("activate wifi station")
     station.active(True)
     
     if not _ssid:
+        log.debug("load wifi config")
         load_config()
         
-    log.info("Connecting wifi")
+    log.info(f"Connecting wifi.  app={app_name} ssid={_ssid} password={_password} connection={station.isconnected()}")
     if not station.isconnected() and _ssid:
         try:
-            log.info(f"connect({_ssid},{_password})")
+            log.info(f"connect({_ssid},{_password})  retries={retries} type={type(retries)}  delay={delay_seconds}")
             station.connect(_ssid,_password)
             retry = 0
-            while not station.isconnected() and retry < retries:
+            while not station.isconnected() and (retry < retries):
                 log.info("wait for Wifi connection")
                 await asyncio.sleep_ms(delay_seconds*1000)
                 log.info(f"waited {delay_seconds} seconds")
@@ -109,7 +112,7 @@ async def get_form(req,resp):
     log.debug(f"Page: {page[0:100]}...")
     return page
     
-async def post_form(self,req,resp):
+async def post_form(req,resp):
     global _ssid, _password, _stop_event
     log.debug("POST form")
     # nets = self.nets
@@ -129,7 +132,7 @@ async def wifi_web_configure(app_name):
     try:
         from fc.net.http import HttpServer, HttpRouter
         log.info("Wifi web config running")
-
+        station.active(True)
         ap.active(True)
         essid = f"config-{app_name}-{get_ip_addr(ap)}"
         ap.config(essid=essid,password='',authmode=AUTH_OPEN)

@@ -114,14 +114,15 @@ class HttpRouter:
         
     async def handle(self,req,resp):
         path = req.get_path()
-        log.debug(f"{self.__class__.__name__}: Handle route {path} {resp}")
+        log.debug(f"{self.__class__.__name__}: Handle route {req.get_method()} {path} {resp}")
         for route in self.routes:
             log.debug(f"try {route}")            
             if route.is_match(req):
                 log.debug("found match")
                 content = await route.handle(req,resp)
-                log.info(f"got: {content[0:20]}")
+                # if content is None, the handler already send the response
                 if content is not None:
+                    log.info(f"got: {content[0:20]}")
                     await resp.send(content)
                 return True
         return False
