@@ -127,6 +127,7 @@ class HttpRequest(ReqResp):
     def set_path(self,path):
         self.path = path
     def set_path_values(self,vals):
+        log.info(f"set path values: {vals}")
         self.path_values = vals or {}
     async def parse_request(self,reader):
         #log.debug(f"parse_request {reader}")
@@ -189,6 +190,7 @@ class HttpRequest(ReqResp):
     
     def get(self,name,default_value = None):
         """ try to get the name from params, data, headers.  the first value found is returned"""
+        log.debug(f"get {name} in {self.path_values} or {self.params} or {self.data} or {self.headers}")
         val = self.path_values[name] if name in self.path_values else None
         if val is None:
             val = self.params.get(name)
@@ -196,6 +198,7 @@ class HttpRequest(ReqResp):
             val = self.data.get(name)
         if val is None:
             val = self.headers.get(name)
+        log.debug(f"found {val}")
         return val or default_value
         
 class HttpResponse(ReqResp):
@@ -269,7 +272,7 @@ class HttpResponse(ReqResp):
  
         
     async def send(self,content):
-        log.info(f"send content: {content[0:20]}")
+        log.info(f"send content: {type(content)}")
         if not isinstance(content,ResponseContent):
             content = ResponseContent(content = content)
         await self.send_content(content)

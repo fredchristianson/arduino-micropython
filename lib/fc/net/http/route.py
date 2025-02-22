@@ -1,7 +1,7 @@
 import logging
 import os
 from fc.util import Path
-from lib.fc.net.http.req_resp import Values
+from .req_resp import Values
 from .mime import get_mime_type_from_ext
 
 log = logging.getLogger("fc.net.http.route")
@@ -66,7 +66,6 @@ class HttpRoute:
     
     def handle(self,req,resp,path=None):
         values = self.path.get_path_values(path)
-        req.set_path_values(values)
         response = self.callback(req,resp)
         log.debug(f"response: {response}")
         return response
@@ -122,7 +121,7 @@ class HttpRouter:
                 content = await route.handle(req,resp)
                 # if content is None, the handler already send the response
                 if content is not None:
-                    log.info(f"got: {content[0:20]}")
+                    log.info(f"send content: {type(content)}")
                     await resp.send(content)
                 return True
         return False
