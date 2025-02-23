@@ -69,7 +69,7 @@ class Config:
                 for i,v in enumerate(val):
                     stack.append((v,path+[f'[{i}]']))
             elif path:
-                log.debug(f"path: {path}")
+                
                 const.append({'path':'.'.join(path),'value':val})
         return editables,const
     

@@ -91,12 +91,12 @@ class HttpServer:
             writer.write(b'HTTP/1.0 500 Internal Server Error\r\nContent-Type: text/plain\r\n\r\nInternal Server Error\r\n')
         try:
             await writer.drain()
-            log.info("wait drain")
+            log.debug("wait drain")
             await asyncio.sleep(1)
-            log.info("delay done")
+            log.debug("delay done")
             await writer.drain()
 
-            log.info("close")
+            log.debug("close")
             writer.close()
             log.info("wait close")
             await writer.wait_closed()

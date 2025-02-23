@@ -19,7 +19,7 @@ class App:
         App.instance = self
         self._config = load_config("/data/config.json")
         App.CONFIG = self._config
-        log.info(f"config: {self._config._values}")
+        log.debug(f"config: {self._config._values}")
         self.is_set_up = False
         self.name = name
         loop = asyncio.get_event_loop()

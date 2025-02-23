@@ -1,12 +1,12 @@
 {
-    "levels":{
+    "levels": {
         "default": "info",
         "fc": "debug",
-        "fc.app": "debug",
+        "fc.app": "info",
         "fc.net": "debug",
         "fc.net.wifi": "debug",
         "fc.net.time": "debug",
-        "fc.net.http": "debug",
+        "fc.net.http": "info",
         "fc.net.http.server.req_resp": "debug"
     }
 }

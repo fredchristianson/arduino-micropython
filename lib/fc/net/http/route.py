@@ -3,6 +3,7 @@ import os
 from fc.util import Path
 from .req_resp import Values
 from .mime import get_mime_type_from_ext
+from .file_response import FileResponse
 
 log = logging.getLogger("fc.net.http.route")
 
@@ -130,11 +131,13 @@ class HttpRouter:
 class StaticFileRoute(HttpRoute):
     def __init__(self,directory,extensions):
         async def handle(req,resp):
-            return await self.send_file(req,resp=resp)
+            path = Path.join(self.directory,req.get_path())
+            return FileResponse(path)
             
         super().__init__("*",handle,"GET")
         self.directory = directory
         self.extensions = extensions
+        self.filename = None
         
     def set_root_path(self,path):
         self.directory = path
@@ -159,40 +162,6 @@ class StaticFileRoute(HttpRoute):
             log.error(f"File {full_path} does not exist")
             return False
         
-    async def send_file(self,req,resp):
-    
-        log.debug(f"send file: {req}")
-
-        full_path = Path.join(self.directory,req.get_path())
-        values = self.path.get_path_values(full_path)
-        req.set_path_values(Values)
-        log.debug(f"path {full_path}")
-        try:
-            dot = full_path.rfind('.')
-            if dot is not None and dot >= 0:
-                ext = full_path[dot:]
-                log.debug(f"ext {ext}, mime {get_mime_type_from_ext(ext)}")
-                resp.content_type(get_mime_type_from_ext(ext))
-            blen = 1024
-            fstat  = os.stat(full_path)
-            flen = fstat[6]
-            log.debug(f"file flen {flen}.  send to {resp}")
-            resp.content_length(flen)
-            await resp.send_headers()
-            with open(full_path,'rb') as file:
-                data = file.read(blen)
-                while data:
-                    #log.debug(f"send data {data}")
-                    #log.debug(f"send len {len(data)}")
-                    await resp.send_data(memoryview(data))
-                    log.debug(f'sent {len(data)} bytes of data')
-                    data = file.read(blen)
-                log.debug("file sent")
-        except Exception as ex:
-            log.error(f"cannot read file {full_path}")
-            log.exception("Exception",exc_info = ex)
-            await resp.send_error(404,str(ex))
-        return None  # HttpRoute should not send anything since already sent
     
 class StaticFileRouter(HttpRouter):
     def __init__(self,dir='/html', extensions=['html','css','js','png','jpg','jpeg','gif','ico']):

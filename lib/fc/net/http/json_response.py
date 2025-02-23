@@ -6,10 +6,11 @@ import json
 
 class JsonResponse(ResponseContent):
     def __init__(self,json_content):
-        super().__init__(mime_type="application/json")
-        self.json_content = json_content
+        self.json_content = self.get_json(json_content)
+
+        super().__init__(mime_type="application/json",content = self.json_content)
     
-    def get_content(self):
-        if type(self.json_content) != str:
-            self.json_content = json.dumps(self.json_content)
-        return self.json_content
+    def get_json(self,json_content):
+        if type(json_content) != str:
+            json_content = json.dumps(json_content)
+        return json_content

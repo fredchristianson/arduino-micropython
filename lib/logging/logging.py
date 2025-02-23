@@ -204,7 +204,7 @@ class Logger:
         self.log(ALWAYS, msg, *args)
         
     def never(self, msg, *args):
-        self.log(NEVER, msg, *args)
+        pass
         
     def debug(self, msg, *args):
         self.log(DEBUG, msg, *args)

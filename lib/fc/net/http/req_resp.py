@@ -132,8 +132,6 @@ class HttpRequest(ReqResp):
     async def parse_request(self,reader):
         #log.debug(f"parse_request {reader}")
         http = await asyncio.wait_for_ms(reader.readline(),5000)
-        log.debug(f"read: {http}")
-        log.debug(f"read: {http.decode()}")
         if http is None:
             log.error("request not read")
             return False
@@ -150,19 +148,17 @@ class HttpRequest(ReqResp):
             parts = self.uri.split("?")
             self.path = parts[0]
             self.query = parts[1]
-            log.debug(f"parse query {self.query}")
             vals = self.query.split("&")
             for val in vals:
                 parts = val.split("=")
                 self.params.add(urldecode(parts[0]),urldecode(parts[1]))
-            log.debug(f"params: {self.params}")
+
         else:
             self.path = self.uri
         
         next = await   asyncio.wait_for_ms(reader.readline(),5000)
         next = next.decode()
         while next != "\r\n":
-            log.debug(f"parse header {next}")
             parts = next.split(":")
             self.headers.set(parts[0].strip(),parts[1].strip())
             next =   await asyncio.wait_for_ms(reader.readline(),5000)
@@ -234,14 +230,18 @@ class HttpResponse(ReqResp):
             self.headers.set_default('Content-Type',self.mime_type )
         if self.content_len is not None:
             self.headers.set_default('Content-Length',self.content_len )
+        else:
+            self.headers.set_default('Transfer-Encoding','chunked')
         for name,val in self.headers.items():
             log.info(f"Header:  {name}={val}")
             w.write(f"{name}: {val}\r\n".encode('utf-8'))
-        w.write(b"\r\n")       
+            await w.drain()
+        w.write(b"\r\n")   
+        await w.drain()    
         log.debug('headers sent') 
         
     async def send_data(self,data):
-        log.debug(f"sending {len(data)} bytes of data")
+        log.debug(f"sending {len(data)} bytes of data: {data[:100]}")
         self.writer.write(data)
         await self.writer.drain()
 
@@ -250,23 +250,20 @@ class HttpResponse(ReqResp):
         try:
             log.debug("write: page")
             self.mime_type = content.get_mime_type()       
-            data = io.BytesIO(content.get_data())
+
             log.debug(f"Mime type %s",self.mime_type)
-            data_len = content.get_length()
-            log.debug(f"Data len %d",data_len)
-            self.content_length(data_len)
-            log.debug("send headers")
             await self.send_headers()
-          
-            log.info(f"write binary len {data_len}")
-            buflen = 1024 # int(gc.mem_free()/2)
-            while data.tell() < data_len:
-                # writing needs to allocate memory.  garbage or it can fail
-                gc.collect()
-                buf = data.read(buflen)
-                await self.send_data(buf)
-                log.info(f"wrote data len ={len(buf)}")
+
+            data = content.get_data()
+            for chunk in data:
+                chunk = chunk if isinstance(chunk,bytes) or isinstance(chunk,memoryview) else chunk.encode('utf-8')
+                l = len(chunk)
+                await self.send_data(f"{l:x}\r\n".encode('utf-8'))      
+                await self.send_data(chunk)
+                await self.send_data(b"\r\n")
+            await self.send_data(b"0\r\n\r\n")
             content.on_sent()
+
         except Exception as ex:
             log.exception("Cannot send data",exc_info=ex)
  
