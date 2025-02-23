@@ -17,6 +17,23 @@ class Config:
                 return default
         return val
     
+    def update(self,editables,save=True):
+        if type(editables) == dict:
+            editables = [editables]
+        for editable in editables:
+            self.set(editable['path'],editable['value'],save=save)
+        
+    def set(self, key, value, save=True):
+        levels = key.split('.')
+        val = self._values
+        for level in levels[:-1]:
+            if level not in val:
+                val[level] = {}
+            val = val[level]
+        val[levels[-1]] = value
+        if save and self.save_method:
+            self.save_method(self)
+    
     def data(self):
         return self._values
     
@@ -56,26 +73,6 @@ class Config:
                 const.append({'path':'.'.join(path),'value':val})
         return editables,const
     
-    def update_values(self,values):
-        editables = []
-        vals = {item['path']:item['value'] for item in values}
-        stack = [(self._values,[])]
-        while stack:
-            val,path = stack.pop()
-            if isinstance(val,dict):
-                if '_editable' in val and val['_editable']:
-                    for k,v in val.items():
-                        if not k.startswith('_'):
-                            editables.append({'path':'.'.join(path)+'.'+k,'value':v})
-                for k,v in val.items():
-                    stack.append((v,path+[k]))
-            elif isinstance(val,list):
-                for i,v in enumerate(val):
-                    stack.append((v,path+[f'[{i}]']))
-            elif path:
-                log.debug(f"path: {path}")
-                const.append({'path':'.'.join(path),'value':val})
-        return editables,const
         
 def save_config(config,file="/data/config.json"):
     import json

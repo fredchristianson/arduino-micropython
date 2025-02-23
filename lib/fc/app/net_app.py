@@ -80,7 +80,7 @@ class NetApp(App):
         for e in editables:
             if e['path'].endswith('.pin'):
                 e['value'] = e['value'] + 1
-        config.update_values(editables)
+        config.update(editables)
         return json
            
     async def uptime_page(self,req,resp):
