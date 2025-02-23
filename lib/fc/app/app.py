@@ -8,13 +8,18 @@ log = logging.getLogger("fc.app")
 
 class App:
     instance = None
+    CONFIG = None
     @classmethod
     def get(cls):
         return App.instance
     
     def __init__(self, name="<unnamed app>"):
+        from fc.config import load_config
         log.info("App created")
         App.instance = self
+        self._config = load_config("/data/config.json")
+        App.CONFIG = self._config
+        log.info(f"config: {self._config._values}")
         self.is_set_up = False
         self.name = name
         loop = asyncio.get_event_loop()
@@ -22,7 +27,7 @@ class App:
         self._uptime_seconds = 0
         self._debug = True
         # TODO: allow gc threshold to be set in config
-        gc.threshold(1024*32)
+        gc.threshold(1024*16)  # allocate when 16k have been freed
         gc.collect()
         
         

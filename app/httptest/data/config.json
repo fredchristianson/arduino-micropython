@@ -1,2 +1,15 @@
 {
+    "led":{
+       "top_left" : { "pin":5, "count": 10,"_label":"Top Left", "_editable": true },
+       "top_right" : { "pin":6,"_label":"Top Right", "_editable": true },
+       "bottom_right" : { "pin":7,"_label":"Bottom Right", "_editable": false }
+    },
+    "motion":{
+       "left" : { "pin":9,"_label":"Motion Left", "_editable": true },
+       "right" : { "pin":10,"_label":"Motion Right", "_editable": true },
+       "trigger": { "option":["both","either"],"_label":"Trigger", "_editable": true }
+    },
+    "test": {
+        "a":{ "b":{"c":234,"d":"abc"}}
+    }
 }

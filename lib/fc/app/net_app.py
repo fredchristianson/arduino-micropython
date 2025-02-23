@@ -72,7 +72,16 @@ class NetApp(App):
         return doc
         
     async def config_page(self,req,resp):
-        return "config content <b>goes</b> here"
+        from fc.net.http import JsonResponse as Json
+        config = App.CONFIG
+        editables,const = config.list_values()
+        json = Json({'editable':editables,'const':const})
+        
+        for e in editables:
+            if e['path'].endswith('.pin'):
+                e['value'] = e['value'] + 1
+        config.update_values(editables)
+        return json
            
     async def uptime_page(self,req,resp):
         secs = self._uptime_seconds
