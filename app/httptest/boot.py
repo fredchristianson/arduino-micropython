@@ -1,13 +1,14 @@
 # boot.py -- run on boot-up
 #
 # data/logging.json is automatically loaded
-#import logging
-#logging.config()
-
+import logging
+logging.config("/data/logging.json")  
 
 from http_test import HttpTestApp
-import asyncio
-
-
 app = HttpTestApp()
-asyncio.run(app.run())
+
+
+# Run the connection function
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(app.run())

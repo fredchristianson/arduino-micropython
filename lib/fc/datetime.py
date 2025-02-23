@@ -63,10 +63,10 @@ class timevalue:
     def __add__(self,other):
         seconds = self._seconds_since_epoch
         if isinstance(other,timevalue):
-            print(f"__add__ {self._seconds_since_epoch} + {other._seconds_since_epoch}")
+            #print(f"__add__ {self._seconds_since_epoch} + {other._seconds_since_epoch}")
             seconds = self._seconds_since_epoch + other._seconds_since_epoch
         elif type(other) == int:
-            print(f"__add__ {self._seconds_since_epoch} + {other}")
+            #print(f"__add__ {self._seconds_since_epoch} + {other}")
             
             seconds = self._seconds_since_epoch + other
         sum = self.__class__.create(seconds_since_epoch = seconds)

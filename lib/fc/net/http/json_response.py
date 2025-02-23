@@ -4,7 +4,7 @@ from .response_content import ResponseContent
 import json
 
 
-class Json(ResponseContent):
+class JsonResponse(ResponseContent):
     def __init__(self,json_content):
         super().__init__(mime_type="application/json")
         self.json_content = json_content

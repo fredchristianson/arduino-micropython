@@ -6,7 +6,6 @@ import time
 import json
 import _thread
 import machine
-from fc.datetime import datetime
 
 # secondary threads seem to have a small stack and can't do formats that require deep calls
 _primary_thread = _thread.get_ident()
@@ -145,6 +144,7 @@ class Formatter:
         return "asctime" in self.fmt
 
     def formatTime(self, datefmt, record):
+        from fc.datetime import datetime
         # secondary threads run out of stack formating a datetime so use RTC for them
         if _primary_thread == _thread.get_ident():
             now = datetime.now()

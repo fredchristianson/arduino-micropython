@@ -2,6 +2,7 @@ import logging;
 import asyncio
 from .app import App
 from fc.net.wifi import wifi_connect, wifi_web_configure
+from fc.net.html import *
 import gc
 
 log = logging.getLogger("fc.netapp")
@@ -30,7 +31,7 @@ class NetApp(App):
         port = self.get_http_port()
         if port is not None:       
             log.info(f"setup HTTP server on port {port}")
-            from fc.net.http import HttpServer, HttpRouter, HttpRoute, Html, Json
+            from fc.net.http import HttpServer, HttpRouter
             self._http = HttpServer(port)
             self._sys_router = HttpRouter()
             self._sys_router.GET("/sys/status",self.status_page)
@@ -65,8 +66,10 @@ class NetApp(App):
         pass
         
     async def status_page(self,req,resp):
-        from fc.net.http import Html
-        return Html("test <b>html</b> response")
+        doc = HtmlDoc()
+        body=doc.body()
+        body.append(Text("hello"))
+        return doc
         
     async def config_page(self,req,resp):
         return "config content <b>goes</b> here"
@@ -80,6 +83,6 @@ class NetApp(App):
         return f"<html><body>Uptime: <b>{days} days {hours} hours {min} minutes {secs%60} seconds.  Total seconds = {secs}</body></html"
         
     async def other_page(self,req,resp):
-        from fc.net.http import Json
+        from fc.net.http import JsonResponse as Json
         value = req.get('name')
         return Json({"name":value, "test":123})
