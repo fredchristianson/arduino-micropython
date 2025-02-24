@@ -9,6 +9,33 @@ import gc
 
 log = logging.getLogger("fc.net.http.server.req_resp")
 
+class ChunkWriter:
+    def __init__(self,writer: StreamWriter, size=1024):
+        self.writer = writer
+        self.size = size
+        self.buffer = bytearray(self.size)
+        self.pos = 0
+        
+    async def write(self,data):
+        if type(data) == str:
+            data = data.encode('utf-8')
+        dlen = len(data)
+        dpos = 0
+        while dpos < dlen:
+            self.buffer[self.pos] = data[dpos]
+            self.pos += 1
+            dpos += 1
+            if self.pos == self.size:
+                await self.write_chunk()
+                
+                
+    async def write_chunk(self):
+        if self.pos > 0:
+            self.writer.write(f"{self.pos:x}\r\n".encode('utf-8'))
+        self.writer.write(self.buffer[:self.pos])
+        self.writer.write(b"\r\n")
+        await self.writer.drain()
+        self.pos = 0
         
 def urldecode(encoded_str):
     decoded_str = ""
@@ -241,13 +268,14 @@ class HttpResponse(ReqResp):
         log.debug('headers sent') 
         
     async def send_data(self,data):
-        log.debug(f"sending {len(data)} bytes of data: {data[:100]}")
+        #log.debug(f"sending {len(data)} bytes of data: {data[:100]}")
         self.writer.write(data)
         await self.writer.drain()
 
         
     async def send_content(self,content):
         try:
+            chunk_writer = ChunkWriter(self.writer)
             log.debug("write: page")
             self.mime_type = content.get_mime_type()       
 
@@ -257,11 +285,12 @@ class HttpResponse(ReqResp):
             data = content.get_data()
             for chunk in data:
                 chunk = chunk if isinstance(chunk,bytes) or isinstance(chunk,memoryview) else chunk.encode('utf-8')
-                l = len(chunk)
-                await self.send_data(f"{l:x}\r\n".encode('utf-8'))      
-                await self.send_data(chunk)
-                await self.send_data(b"\r\n")
-            await self.send_data(b"0\r\n\r\n")
+                
+                await chunk_writer.write(chunk)
+            
+            await chunk_writer.write_chunk() # send last chunk
+            self.writer.write(b"0\r\n\r\n")
+            await self.writer.drain()
             if hasattr(content,'on_sent'):
                 content.on_sent()
 
