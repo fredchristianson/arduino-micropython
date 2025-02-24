@@ -29,7 +29,7 @@
             "_editable": true
         },
         "trigger": {
-            "option": [
+            "_options": [
                 "both",
                 "either"
             ],

@@ -262,15 +262,17 @@ class HttpResponse(ReqResp):
                 await self.send_data(chunk)
                 await self.send_data(b"\r\n")
             await self.send_data(b"0\r\n\r\n")
-            content.on_sent()
+            if hasattr(content,'on_sent'):
+                content.on_sent()
 
         except Exception as ex:
             log.exception("Cannot send data",exc_info=ex)
  
         
     async def send(self,content):
+        from fc.net.html import HtmlDoc
         log.info(f"send content: {type(content)}")
-        if not isinstance(content,ResponseContent):
+        if not isinstance(content,ResponseContent) and type(content) != HtmlDoc:
             content = ResponseContent(content = content)
         await self.send_content(content)
             

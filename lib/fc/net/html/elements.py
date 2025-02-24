@@ -1,51 +1,201 @@
 from fc.net.http import HtmlResponse
     
+html_entities = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+}
+    
+def attr_encode(value):
+    value = str(value) if type(value) != str else value
+    return ''.join(html_entities.get(c,c) for c in value) if value is not None else ''
+    
 class HtmlElement:
-    def __init__(self,tag,attrs={}):
+    def __init__(self,tag,**kwargs):
+        attrs = kwargs.get('attrs',{})
+        children = kwargs.get('children',[])
+        if type(children) != list:
+            children = [children]
+        for key in kwargs.keys():
+            if key not in ['attrs','children']:
+                attrs[key] = kwargs[key]        
         self._tag = tag
         self._attrs = attrs
+        self._is_self_closing = False
+        self._parent = None
+        
+    def set_attrs(self,**kwargs):
+        for key in kwargs.keys():
+            self._attrs[key] = kwargs[key]
+        
+    def parent(self):
+        return self._parent
+        
+    def get_data(self):
+        yield self.start_tag()
+        yield from self.get_inner_data()
+        if not self._is_self_closing:
+            yield f"</{self._tag}>"
+        
+    def get_inner_data(self):
+        # base class does nothing
+        return []
+        
+    def start_tag(self):
+        attrs = [f"{attr}='{attr_encode(self._attrs[attr])}'" for attr in self._attrs.keys() if self._attrs[attr] is not None]
+        return f"<{self._tag} {' '.join(attrs)} {'/' if self._is_self_closing else ''}>"
+    
+class HtmlParentElement(HtmlElement):
+    def __init__(self,tag,**args):
+
+        super().__init__(tag,**args)
         self._children = []
+        self.child()
+        contents = args.get('contents',None)
+        if contents:
+            args.pop('contents')
+            if type (contents) != list:
+                contents = [contents]
+            for c in contents:
+                if type(c) == str:
+                    self.text(c)
+                else:
+                    self.child(c)
         
-    def to_html(self):
-        return f"<{self._tag} {self.attrs_to_html()}>{self.children_to_html()}</{self._tag}>"
+      
+    def child(self,*children):
+        for c in children:
+            self._children.append(c)
+            c._parent = self
+        return self
+        
+    def get_inner_data(self):
+        for child in self._children:
+            yield from child.get_data()
+        
+    def div(self,**kwargs):
+        div = HtmlParentElement('div',**kwargs)
+        self.child(div)
+        return div
+                
+    def p(self,**kwargs):
+        div = HtmlParentElement('p',**kwargs)
+        self.child(div)
+        return div
+        
+    def table(self,**kwargs):
+        table = HtmlTableElement(**kwargs)
+        self.child(table)
+        return table
     
-    def attrs_to_html(self):
-        html = [f"{attr}='{self._attrs[attr]}'" for attr in self._attrs.keys()]
-        return ' '.join(html)
-        
-    def append(self,child):
-        self._children.append(child)
-        
-    def children_to_html(self):
-        html = [child.to_html() for child in self._children]
-        return ' '.join(html)
+    def text(self,text):
+        elem = Text(text)
+        self.child(elem)
+        return self
     
-    def get_content(self):
-        """return the content as a string to be returned as content in an HTTP response"""
-        return self.to_html()    
+    def form(self,method="POST",action=None,enctype='application/x-www-form-urlencoded',**kwargs):
+        form = HtmlFormElement(method,action,enctype=enctype,**kwargs)
+        self.child(form)
+        return form
+    
+    def input(self,name,value,intype=None,**kwargs):
+        kwargs['name'] = name
+        kwargs['value'] = f'{value}' if value is not None else ''
+        if intype is not None:
+            kwargs['type'] = intype
+        else:
+            kwargs['type'] = 'number' if type(value) == int else 'text'
+        input = HtmlElement('input',**kwargs)
+        self.child(input)
+        return input
+    
+class HtmlFormElement(HtmlParentElement):
+    def __init__(self,method="POST",action=None,enctype='application/x-www-form-urlencoded',**kwargs):
+        kwargs['method'] = method
+        kwargs['action'] = action
+        kwargs['enctype'] = enctype
+        super().__init__('form',**kwargs)
         
+class HtmlTableElement(HtmlParentElement):
+    def __init__(self,**kwargs):
+        super().__init__('table',**kwargs)
+        
+    def header(self,**kwargs):
+        tr = HtmlTrElement(self,is_header=True,**kwargs)
+        self.child(tr)
+        return tr
+                
+    def row(self,contents=None,**kwargs):
+        tr = HtmlTrElement(self,**kwargs)
+        self.child(tr)
+        return tr
+        
+class HtmlTrElement(HtmlParentElement):
+    def __init__(self,table,is_header=False,**kwargs):
+        super().__init__('tr',**kwargs)
+        self._table = table
+        self._is_header = is_header
+        
+    def cell(self,contents=None,**kwargs):
+        kwargs['contents'] = contents
+        td = HtmlTdElement(self,'td' if not self._is_header else 'th',**kwargs)
+        self.child(td)
+        return td
+
+    
+    def table(self):
+        return self._table
+        
+class HtmlTdElement(HtmlParentElement):
+    def __init__(self,tr,tag='td',**kwargs):
+        super().__init__(tag,**kwargs)
+        self.tr = tr
+        
+    def row(self):
+        return self.tr.table().row()
+    
 class Text(HtmlElement):
     def __init__(self,text):
+        super().__init__("TEXT")
         self._text = text
     
     def to_html(self):
         return self._text
     
-class HtmlDoc(HtmlElement):
+    def get_data(self):
+        yield self._text
+    
+class HtmlHead(HtmlParentElement):
+    def __init__(self,**kwargs):
+        super().__init__('head',**kwargs)
+        
+class HtmlBody(HtmlParentElement):
+    def __init__(self,**kwargs):
+        super().__init__('body',**kwargs)
+class HtmlDoc(HtmlParentElement):
+    """The root of an HTML page.  Needs to implement get_mime_type and get_data to work
+    as a response content object"""
+    
     def __init__(self):
         super().__init__('html')
-        self._head = HtmlElement('head')
-        self._body = HtmlElement('body')
-        self.append(self._head)
-        self.append(self._body)
+        self._head = HtmlHead()
+        self._body = HtmlBody()
+        self.child(self._head)
+        self.child(self._body)
         
-    def get_content(self):
-        return self.to_html()
+         
+    def get_mime_type(self):
+        return "text/html"
 
     def head(self):
         return self._head
                 
     def body(self):
         return self._body
+    
+def dumps(doc):
+    return ''.join(doc.get_data())  
 
         

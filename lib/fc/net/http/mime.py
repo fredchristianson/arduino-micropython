@@ -136,7 +136,7 @@ def get_mime_type_from_content(content):
         str: a mime type
     """
     try:
-        if content is None or len(content)<10:
+        if content is None:
             log.info("Content is empty")
             return mime_types['.txt']
         log.info(f"get mime type for {type(content)} {content[0:20]}")

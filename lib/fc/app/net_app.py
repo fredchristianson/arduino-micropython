@@ -36,6 +36,7 @@ class NetApp(App):
             self._sys_router = HttpRouter()
             self._sys_router.GET("/sys/status",self.status_page)
             self._sys_router.GET("/sys/config",self.config_page)
+            self._sys_router.POST("/sys/config",self.update_config)
             self._sys_router.GET("/sys/uptime",self.uptime_page)
             self._sys_router.GET("/sys/:name",self.other_page)
             self._app_router = HttpRouter()
@@ -68,20 +69,43 @@ class NetApp(App):
     async def status_page(self,req,resp):
         doc = HtmlDoc()
         body=doc.body()
-        body.append(Text("hello"))
+        body.child(Text("hello"))
         return doc
         
     async def config_page(self,req,resp):
-        from fc.net.http import JsonResponse as Json
+        from fc.net.html import HtmlDoc
         config = App.CONFIG
         editables,const = config.list_values()
-        json = Json({'editable':editables,'const':const})
-        
+        #log.debug(f"editables: {editables}")
+        doc = HtmlDoc()
+        body = doc.body()
+        form = body.form()
+        table = form.table()
+        header = table.header()
+        header.cell('Path')
+        header.cell("Value")
+        i=1
         for e in editables:
-            if e['path'].endswith('.pin'):
-                e['value'] = e['value'] + 1
-        config.update(editables)
-        return json
+            row = table.row()
+            name = e['path']+'x'
+            val = e['value']
+            log.debug(f"add import: {e} {name}={val}")
+            row.cell(e['path'])
+            row.cell().input(name,f"{val}")
+        form.input("submit","Submit","submit")
+
+        
+        return doc
+        # json = Json({'editable':editables,'const':const})
+        
+        # for e in editables:
+        #     if e['path'].endswith('.pin'):
+        #         e['value'] = e['value'] + 1
+        # config.update(editables)
+        # return json
+        
+    async def update_config(self,req,resp):
+        return "update not implemented"
            
     async def uptime_page(self,req,resp):
         secs = self._uptime_seconds
