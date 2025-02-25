@@ -72,28 +72,48 @@ class NetApp(App):
         body.child(Text("hello"))
         return doc
         
-    async def config_page(self,req,resp):
+    async def config_page(self,req,resp,message = "Configuration"):
         from fc.net.html import HtmlDoc
         config = App.CONFIG
         editables,const = config.list_values()
         #log.debug(f"editables: {editables}")
         doc = HtmlDoc()
         body = doc.body()
+        body.h1(message)
         form = body.form()
         table = form.table()
         header = table.header()
-        header.cell('Path')
+        header.cell('Name')
         header.cell("Value")
         i=1
         for e in editables:
-            row = table.row()
-            name = e['path']+'x'
-            val = e['value']
-            log.debug(f"add import: {e} {name}={val}")
-            row.cell(e['path'])
-            row.cell().input(name,f"{val}")
-        form.input("submit","Submit","submit")
+            # log.debug(f"{e}")
+            definition = e.get('definition',{})
+            opts = definition.get('_options',None)
+            if opts:
+                row = table.row()
+                name = f"config--{e['path']}"
+                val = e['value']
+                row.cell(f"{e['path']}")
+                row.cell().select(name,val,opts)
+            else:
+                row = table.row()
+                name = f"config--{e['path']}"
+                val = e['value']
+                row.cell(e['path'])
+                row.cell().input(name,f"{val}")
+        form.input("submit","Save","submit")
 
+        body.h2("Not Editable")
+        table = body.table()
+        header = table.header() 
+        header.cell('Name')
+        header.cell("Value")
+        for e in const:
+            #log.debug(f"{e}")
+            row = table.row()
+            row.cell(e['path'])
+            row.cell(str(e['value']))
         
         return doc
         # json = Json({'editable':editables,'const':const})
@@ -105,7 +125,11 @@ class NetApp(App):
         # return json
         
     async def update_config(self,req,resp):
-        return "update not implemented"
+        #log.debug(f"Req data: {req.data}")
+        values = {k[8:]:req.data[k] for k in req.data.keys() if k.startswith('config--')}
+        log.debug(f"Values: {values}")
+        App.CONFIG.update(values)
+        return await self.config_page(req,resp,"Configuration Updated")
            
     async def uptime_page(self,req,resp):
         secs = self._uptime_seconds

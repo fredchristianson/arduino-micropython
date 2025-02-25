@@ -62,6 +62,9 @@ class Values:
         
     def items(self):
         return self._values.items()
+    
+    def keys(self):
+        return self._values.keys()
             
     def get(self,name,default_val = None):
         val = self._values[name] if name in self._values else None
@@ -76,6 +79,9 @@ class Values:
             except Exception:
                 return val
         return val
+    
+    def __getitem__(self,index):
+        return self._values[index] if index in self._values else None
 
     def set(self,name,val):
         self._values[name] = val

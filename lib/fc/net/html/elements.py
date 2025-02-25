@@ -42,25 +42,26 @@ class HtmlElement:
     def get_inner_data(self):
         # base class does nothing
         return []
-        
+    
+
     def start_tag(self):
         attrs = [f"{attr}='{attr_encode(self._attrs[attr])}'" for attr in self._attrs.keys() if self._attrs[attr] is not None]
         return f"<{self._tag} {' '.join(attrs)} {'/' if self._is_self_closing else ''}>"
     
 class HtmlParentElement(HtmlElement):
     def __init__(self,tag,**args):
-
+        contents = args.get('contents',None)
+        if contents:
+            args.pop('contents',None)
         super().__init__(tag,**args)
         self._children = []
         self.child()
-        contents = args.get('contents',None)
         if contents:
-            args.pop('contents')
             if type (contents) != list:
                 contents = [contents]
             for c in contents:
-                if type(c) == str:
-                    self.text(c)
+                if not isinstance(c,HtmlElement):
+                    self.text(str(c))
                 else:
                     self.child(c)
         
@@ -80,6 +81,21 @@ class HtmlParentElement(HtmlElement):
         self.child(div)
         return div
                 
+        
+    def h1(self,content=None,**kwargs):
+        kwargs['contents'] = content
+        div = HtmlParentElement('h1',**kwargs)
+        self.child(div)
+        return div
+                
+        
+    def h2(self,content=None,**kwargs):
+        kwargs['contents'] = content
+        div = HtmlParentElement('h2',**kwargs)
+        self.child(div)
+        return div
+                                
+
     def p(self,**kwargs):
         div = HtmlParentElement('p',**kwargs)
         self.child(div)
@@ -110,7 +126,26 @@ class HtmlParentElement(HtmlElement):
         input = HtmlElement('input',**kwargs)
         self.child(input)
         return input
-    
+
+    def select(self,name,selected, vals,**kwargs):
+        select = HtmlSelectElement(name,selected,vals,**kwargs)
+        self.child(select)
+        return select
+        
+class HtmlSelectElement(HtmlParentElement):
+    def __init__(self,name,selected,vals,**kwargs):
+        kwargs['name'] = name
+        super().__init__('select',**kwargs)
+        self._name = name
+        self._selected = selected
+        self._vals = vals  
+        for val in vals:
+            attrs = {'value':val}
+            if val == selected:
+                attrs['selected'] = 'selected'
+            self.child(HtmlParentElement('option',attrs=attrs,contents=val))
+               
+           
 class HtmlFormElement(HtmlParentElement):
     def __init__(self,method="POST",action=None,enctype='application/x-www-form-urlencoded',**kwargs):
         kwargs['method'] = method

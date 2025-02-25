@@ -17,12 +17,18 @@ class Config:
                 return default
         return val
     
-    def update(self,editables,save=True):
-        if type(editables) == dict:
-            editables = [editables]
-        for editable in editables:
-            self.set(editable['path'],editable['value'],save=save)
-        
+    def update(self,values,save=True):
+        """values is a dictionary of json path to value.  Values are updated or added to the config. 
+
+        Args:
+            values (dict): json path to value
+            save (bool, optional): if true the config is saved if there is a save method. Defaults to True.
+        """
+        for path,value in values.items():
+            self.set(path,value,save=False)
+        if save and self.save_method:
+            self.save_method(self)
+                    
     def set(self, key, value, save=True):
         levels = key.split('.')
         val = self._values
@@ -37,7 +43,7 @@ class Config:
     def data(self):
         return self._values
     
-    def get_editable(self):
+    def get_editable_old(self):
         editables = []
         stack = [(self._values,[])]
         while stack:
@@ -62,7 +68,7 @@ class Config:
                 if '_editable' in val and val['_editable']:
                     for k,v in val.items():
                         if not k.startswith('_'):
-                            editables.append({'path':'.'.join(path)+'.'+k,'value':v})
+                            editables.append({'path':'.'.join(path)+'.'+k,'value':v,'definition': val})
                 for k,v in val.items():
                     stack.append((v,path+[k]))
             elif isinstance(val,list):
