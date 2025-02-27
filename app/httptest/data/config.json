@@ -38,12 +38,15 @@
             "_editable": true
         }
     },
-    "test": {
-        "a": {
-            "b": {
-                "c": 234,
-                "d": "abc"
-            }
-        }
+    "mqtt": {
+        "host": "192.168.1.22",
+        "port": 1883,
+        "user": "device",
+        "password": "fred123",
+        "_editable": true
+    },
+    "device": {
+        "name": "Cupboard Lights",
+        "id": "1000"
     }
 }

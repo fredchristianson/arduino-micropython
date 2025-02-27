@@ -105,6 +105,11 @@ class HtmlParentElement(HtmlElement):
         table = HtmlTableElement(**kwargs)
         self.child(table)
         return table
+            
+    def namevalue_table(self,name_col="Name",val_col="Value",**kwargs):
+        table = NameValueTableElement(name_col,val_col,**kwargs)
+        self.child(table)
+        return table
     
     def text(self,text):
         elem = Text(text)
@@ -165,6 +170,27 @@ class HtmlTableElement(HtmlParentElement):
     def row(self,contents=None,**kwargs):
         tr = HtmlTrElement(self,**kwargs)
         self.child(tr)
+        return tr
+    
+        
+    def table(self,**kwargs):
+        table = HtmlTableElement(**kwargs)
+        self.child(table)
+        return table
+      
+class NameValueTableElement(HtmlTableElement):
+    def __init__(self,name_col,val_col,**kwargs):
+        super().__init__(**kwargs)
+        self._name_col = name_col
+        self._val_col = val_col
+        tr = self.header()
+        tr.cell(name_col)
+        tr.cell(val_col)
+        
+    def add(self,name,value,**kwargs):
+        tr = self.row(**kwargs)
+        tr.cell(name)
+        tr.cell(value)
         return tr
         
 class HtmlTrElement(HtmlParentElement):

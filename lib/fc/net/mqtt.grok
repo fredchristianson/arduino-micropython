@@ -1,0 +1,129 @@
+import network
+import time
+from machine import Pin
+import asyncio
+from umqtt.robust import MQTTClient
+
+# Wi-Fi and MQTT settings
+WIFI_SSID = "your_wifi_ssid"
+WIFI_PASSWORD = "your_wifi_password"
+MQTT_BROKER = "home_assistant_ip"
+MQTT_PORT = 1883
+MQTT_USER = "mqtt_user"
+MQTT_PASSWORD = "mqtt_pass"
+MQTT_CLIENT_ID = "esp32_livingroom"
+
+# Pin setup
+led_pins = [Pin(13, Pin.OUT), Pin(14, Pin.OUT), Pin(15, Pin.OUT), Pin(16, Pin.OUT)]
+motion_pins = [Pin(17, Pin.IN), Pin(18, Pin.IN)]
+
+# Connect to Wi-Fi
+def connect_wifi():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print("Connecting to Wi-Fi...")
+        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
+        while not wlan.isconnected():
+            time.sleep(1)
+    print("Wi-Fi connected:", wlan.ifconfig())
+
+# MQTT callback for LED control
+def mqtt_callback(topic, msg):
+    topic_str = topic.decode()
+    msg_str = msg.decode()
+    print(f"Received {msg_str} on {topic_str}")
+    for i in range(4):
+        if topic_str == f"homeassistant/light/esp32_livingroom_led{i+1}/set":
+            led_pins[i].value(1 if msg_str == "ON" else 0)
+
+# Connect to MQTT
+def connect_mqtt():
+    client = MQTTClient(MQTT_CLIENT_ID, MQTT_BROKER, port=MQTT_PORT, user=MQTT_USER, 
+                        password=MQTT_PASSWORD, keepalive=60)
+    client.set_callback(mqtt_callback)
+    client.connect()
+    print("Connected to MQTT broker")
+    for i in range(4):
+        client.subscribe(f"homeassistant/light/esp32_livingroom_led{i+1}/set")
+    return client
+
+# Publish discovery messages
+def publish_discovery(mqtt_client):
+    for i in range(4):
+        discovery_topic = f"homeassistant/light/esp32_livingroom_led{i+1}/config"
+        discovery_payload = f'''
+        {{
+            "name": "LED Strip {i+1}",
+            "unique_id": "esp32_livingroom_led{i+1}",
+            "state_topic": "homeassistant/light/esp32_livingroom_led{i+1}/state",
+            "command_topic": "homeassistant/light/esp32_livingroom_led{i+1}/set",
+            "device": {{
+                "identifiers": ["esp32_livingroom"],
+                "name": "ESP32 Living Room",
+                "manufacturer": "DIY",
+                "model": "ESP32"
+            }}
+        }}
+        '''
+        mqtt_client.publish(discovery_topic, discovery_payload, retain=True)
+        print(f"Published discovery for LED {i+1}")
+
+    for i in range(2):
+        discovery_topic = f"homeassistant/binary_sensor/esp32_livingroom_motion{i+1}/config"
+        discovery_payload = f'''
+        {{
+            "name": "Motion Sensor {i+1}",
+            "unique_id": "esp32_livingroom_motion{i+1}",
+            "state_topic": "homeassistant/binary_sensor/esp32_livingroom_motion{i+1}/state",
+            "device_class": "motion",
+            "device": {{
+                "identifiers": ["esp32_livingroom"],
+                "name": "ESP32 Living Room",
+                "manufacturer": "DIY",
+                "model": "ESP32"
+            }}
+        }}
+        '''
+        mqtt_client.publish(discovery_topic, discovery_payload, retain=True)
+        print(f"Published discovery for Motion {i+1}")
+
+# Async task to periodically check MQTT messages
+async def mqtt_check_task(mqtt_client):
+    while True:
+        mqtt_client.check_msg()  # Non-blocking check for messages
+        await asyncio.sleep(0.1)  # Check every 100ms
+
+# Async task for sensor polling and LED updates
+async def sensor_task(mqtt_client):
+    motion_states = [False, False]
+    while True:
+        # Publish LED states
+        for i, led in enumerate(led_pins):
+            state = "ON" if led.value() else "OFF"
+            mqtt_client.publish(f"homeassistant/light/esp32_livingroom_led{i+1}/state", state)
+
+        # Publish motion sensor states
+        for i, motion in enumerate(motion_pins):
+            current_state = bool(motion.value())
+            if current_state != motion_states[i]:
+                mqtt_client.publish(f"homeassistant/binary_sensor/esp32_livingroom_motion{i+1}/state", 
+                                  "ON" if current_state else "OFF")
+                motion_states[i] = current_state
+                print(f"Motion {i+1} changed to {'ON' if current_state else 'OFF'}")
+
+        await asyncio.sleep(0.1)  # Poll every 100ms
+
+# Main function to set up and run tasks
+async def main():
+    connect_wifi()
+    mqtt_client = connect_mqtt()
+    publish_discovery(mqtt_client)
+
+    # Create tasks
+    asyncio.create_task(mqtt_check_task(mqtt_client))
+    await sensor_task(mqtt_client)  # Run sensor task in main loop
+
+# Run the asyncio event loop
+if __name__ == "__main__":
+    asyncio.run(main())

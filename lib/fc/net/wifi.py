@@ -13,6 +13,8 @@ station.active(True)
 _ssid=None
 _password = None
 
+def get_station_ip():
+    return get_ip_addr(station)
 
 def get_ip_addr(wlan): 
     config = wlan.ifconfig()
@@ -96,6 +98,17 @@ async def wifi_connect(app_name,retries=5, delay_seconds=2):
     else:
         save_config()
         return True
+    
+async def wifi_check_connection():
+    while not station.isconnected():
+        log.info("Wifi not connected")
+        station.connect(_ssid,_password)
+        for i in range(10):
+            if station.isconnected():
+                log.info("Wifi connected")
+                return
+            await asyncio.sleep(1)
+        await asyncio.sleep(5)
 
 _config_message = "Select SSID"
 _stop_event = asyncio.Event()
