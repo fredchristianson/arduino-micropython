@@ -1,9 +1,9 @@
 import logging;
 import asyncio
+
+
 from .app import App
-from .system_routes import SystemRoutes
-from fc.net.wifi import wifi_connect, wifi_web_configure, wifi_check_connection
-from fc.net.mqtt import mqtt_check_connection
+
 import gc
 
 log = logging.getLogger("fc.netapp")
@@ -17,17 +17,20 @@ class NetApp(App):
         self._http = None
         self._sys_router = None
         self._app_router = None
+        self._devices = []
    
     def get_http_server(self): 
         return self._http
         
     async def _setup(self):
-        from fc.net import NetTime        
+        from .system_routes import SystemRoutes
+        from fc.net.mqtt import mqtt_check_connection     
+        from fc.hw.device import create_devices        
+        
         # set up the app
         log.debug("setup app")
         await self._setup_wifi()
         log.debug("wifi setup done")
-        await NetTime.update()
         log.debug("Time setup running")
         port = self.get_http_port()
         if port is not None:       
@@ -42,15 +45,29 @@ class NetApp(App):
             self.setup_routes(self._app_router)
             await self._http.start()
         asyncio.create_task(self._check_network())
+        asyncio.create_task(self._update_time())
+        self._devices = create_devices(self._config.get("devices",None))
         self.is_set_up = True
         
+    async def _update_time(self):
+        from fc.net import NetTime        
+        while True:
+            log.debug("update time")
+            await NetTime.update()
+            log.debug("update time done. sleep for an hour")
+            await asyncio.sleep(60*60)  #update every hour
+            log.debug("update_time again")
+            
     async def _check_network(self):
+        from fc.net.wifi import wifi_connect, wifi_web_configure, wifi_check_connection
+        from fc.net.mqtt import mqtt_check_connection 
         while True:
             await asyncio.sleep_ms(50)
-            wifi_check_connection()
-            mqtt_check_connection()
+            await wifi_check_connection()
+            await mqtt_check_connection()
     
     async def _setup_wifi(self):
+        from fc.net.wifi import wifi_connect, wifi_web_configure, wifi_check_connection
         log.info("setup wifi")
         gc.collect()
         

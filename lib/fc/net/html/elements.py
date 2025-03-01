@@ -1,4 +1,8 @@
 from fc.net.http import HtmlResponse
+from fc.util import Path
+import logging
+
+log = logging.getLogger("fc.net.html")
     
 html_entities = {
     '&': '&amp;',
@@ -222,9 +226,6 @@ class Text(HtmlElement):
         super().__init__("TEXT")
         self._text = text
     
-    def to_html(self):
-        return self._text
-    
     def get_data(self):
         yield self._text
     
@@ -235,6 +236,26 @@ class HtmlHead(HtmlParentElement):
 class HtmlBody(HtmlParentElement):
     def __init__(self,**kwargs):
         super().__init__('body',**kwargs)
+        
+class FileElement(HtmlElement):
+    def __init__(self,filepath, html_directory = '/html',buf_size=1024):
+        super().__init__("FILE")
+        
+        self._filename = Path.join(html_directory,filepath)    
+        log.info(f"File element: {self._filename}")
+        self._buf_size = buf_size
+    
+    def get_data(self):
+        try:
+            with open(self._filename,'rb') as f:
+                chunk = f.read(self._buf_size)
+                while chunk:
+                    yield chunk
+                    chunk = f.read(self._buf_size)
+        except Exception as ex:
+            log.exception("File exception: ",exc_info=ex)
+            yield ''      
+        
 class HtmlDoc(HtmlParentElement):
     """The root of an HTML page.  Needs to implement get_mime_type and get_data to work
     as a response content object"""
@@ -245,6 +266,9 @@ class HtmlDoc(HtmlParentElement):
         self._body = HtmlBody()
         self.child(self._head)
         self.child(self._body)
+        self._head.child(FileElement('hdoc_start.html'))
+        self._body.child(FileElement('hdoc_menu.html'))
+        self.child(FileElement('hdoc_end.html'))
         
          
     def get_mime_type(self):

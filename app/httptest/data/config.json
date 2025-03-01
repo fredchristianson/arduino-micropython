@@ -1,52 +1,68 @@
 {
-    "led": {
-        "top_left": {
-            "pin": 5,
-            "count": 10,
-            "_label": "Top Left",
-            "_editable": true
-        },
-        "top_right": {
-            "pin": 6,
-            "_label": "Top Right",
-            "_editable": true
-        },
-        "bottom_right": {
-            "pin": 7,
-            "_label": "Bottom Right",
-            "_editable": false
-        }
+    "app": {
+        "name": "Cupboard Lights",
+        "version": "1.0.0",
+        "description": "Control the lights in the cupboard",
+        "author": "Fred Christianson"
     },
-    "motion": {
-        "left": {
-            "pin": 9,
-            "_label": "Motion Left",
-            "_editable": true
-        },
-        "right": {
-            "pin": 10,
-            "_label": "Motion Right",
-            "_editable": true
-        },
-        "trigger": {
-            "_options": [
-                "both",
-                "either"
+    "devices": [
+        {
+            "name": "Cupboard Lights",
+            "id": 1000,
+            "leds": [
+                {
+                    "name": "Top Left",
+                    "id": 2000,
+                    "pin": 5,
+                    "count": 10,
+                    "_editable": true
+                },
+                {
+                    "name": "Top Right",
+                    "id": 2001,
+                    "pin": 5,
+                    "count": 10
+                },
+                {
+                    "name": "Bottom Left",
+                    "id": 2002,
+                    "pin": 5,
+                    "count": 10
+                },
+                {
+                    "name": "Bottom Right",
+                    "id": 2003,
+                    "pin": 5,
+                    "count": 10
+                }
             ],
-            "selected": "both",
-            "_label": "Trigger",
-            "_editable": true
+            "motion_sensors": [
+                {
+                    "name": "Left",
+                    "id": 3001,
+                    "pin": 9
+                },
+                {
+                    "name": "Right",
+                    "id": 3002,
+                    "pin": 10
+                },
+                {
+                    "name": "Both",
+                    "id": 3003,
+                    "compose": [
+                        3001,
+                        3002
+                    ]
+                }
+            ]
         }
-    },
+    ],
     "mqtt": {
         "host": "192.168.1.22",
         "port": 1883,
         "user": "device",
         "password": "fred123",
         "_editable": true
-    },
-    "device": {
-        "name": "Cupboard Lights",
-        "id": "1000"
     }
 }

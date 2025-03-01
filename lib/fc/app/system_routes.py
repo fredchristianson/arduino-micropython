@@ -6,6 +6,7 @@ import gc
 from fc.net.wifi import get_station_ip
 from fc.net.html import *
 from .app import App
+from fc.datetime import datetime
  
 log = logging.getLogger('fc.net.mqtt')
 
@@ -22,11 +23,13 @@ class SystemRoutes(HttpRouter):
         min = math.floor(secs/60)   
         hours = math.floor(min/60)
         days = math.floor(hours/24)
-            
+        now = datetime.now()
+        
         doc = HtmlDoc()
         body=doc.body()
         table =body.namevalue_table()
 
+        table.add("Time",now.isoformat())
         table.add("Uptime",f"{days} days {hours%24} hours {min%60} minutes {secs%60} seconds")
 
         table.add("Free Memory",f"{gc.mem_free():,} bytes")
