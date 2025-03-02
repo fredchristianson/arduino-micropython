@@ -6,10 +6,11 @@ import logging
 log = logging.getLogger("fc.net.http.response_content")
 
 class ResponseContent:
-    def __init__(self,mime_type=None, status_code = 200, status_text="OK", content=None):
+    def __init__(self,mime_type=None, status_code = 200, status_text="OK", content=None,on_sent=None):
         log.debug(f"ResponseContent.  type {type(content)}")
         self.status_code = status_code
         self.status_text = status_text
+        self._on_sent = on_sent
         if mime_type is None and content is not None:
             self.mime_type = get_mime_type_from_content(content)
         else:
@@ -20,7 +21,13 @@ class ResponseContent:
             self.content = memoryview(content.encode('utf-8'))
         elif type(content) != memoryview:
             self.content = memoryview(str(content).encode('utf-8'))
+
+        
+    def on_sent(self):
+        if self.on_sent:
+            self.on_sent()
             
+    
     def set_status(self,code,text):
         self.status_code = code
         self.status_text = text

@@ -1,4 +1,5 @@
 import logging
+import json
 
 log = logging.getLogger("fc.config")
 
@@ -7,6 +8,14 @@ class Config:
         self._values = {}
         self.save_method = save_method
         
+    def to_json(self):
+        return json.dumps(self._values or {})
+    
+    def from_json(self,json_text,save=True):
+        self._values = json.loads(json_text)
+        if save and self.save_method:
+            self.save_method(self)
+            
     def get(self, key, default=None):
         levels = key.split('.')
         val = self._values
@@ -42,22 +51,7 @@ class Config:
     
     def data(self):
         return self._values
-    
-    def get_editable_old(self):
-        editables = []
-        stack = [(self._values,[])]
-        while stack:
-            val,path = stack.pop()
-            if isinstance(val,dict):
-                for k,v in val.items():
-                    stack.append((v,path+[k]))
-            elif isinstance(val,list):
-                for i,v in enumerate(val):
-                    stack.append((v,path+[i]))
-            else:
-                editables.append('.'.join(path))
-        return editables
-    
+
     def list_values(self):
         editables = []
         const = []
@@ -91,13 +85,14 @@ def save_config(config,file="/data/config.json"):
         
 def load_config(file="/data/config.json"):
     import json
+    import gc
     try:
-        log.debug(f"Loading config file {file}")
+        log.debug(f"Loading config file {file}.  memfree: {gc.mem_free()}")
         with open(file) as f:
             save = lambda config: save_config(config,file)
             config = Config(save)
             config._values = json.load(f)
-            log.debug(f"config: {config._values}")
+            log.debug(f"config: {config._values} .  memfree: {gc.mem_free()}")
             return config
     except Exception as e:
         log.exception(f"Failed to load config file {file}",e)

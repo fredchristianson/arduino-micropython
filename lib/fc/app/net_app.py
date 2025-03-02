@@ -54,7 +54,7 @@ class NetApp(App):
         while True:
             log.debug("update time")
             await NetTime.update()
-            log.debug("update time done. sleep for an hour")
+            log.debug("update time started. sleep for an hour")
             await asyncio.sleep(60*60)  #update every hour
             log.debug("update_time again")
             
@@ -71,7 +71,7 @@ class NetApp(App):
         log.info("setup wifi")
         gc.collect()
         
-        while not await wifi_connect(self.get_name(),15,delay_seconds=2):
+        while not await wifi_connect(self.get_name(),15,delay_seconds=4):
             await wifi_web_configure(self.get_name())
         
         

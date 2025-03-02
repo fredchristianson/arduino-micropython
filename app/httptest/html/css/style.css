@@ -10,3 +10,10 @@ li {
     display: inline-block;
     margin-right: 10px;
 }
+
+textarea {
+    display: inline-block;
+    width: 100%;
+    min-height: 200px;
+    resize: vertical;
+}

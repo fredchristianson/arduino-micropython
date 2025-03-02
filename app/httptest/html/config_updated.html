@@ -1,0 +1,28 @@
+<html>
+
+<head>
+    <link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+
+
+<body>
+    <h1>Kitchen Cupboard</h1>
+    <ul>
+        <li><a href="/sys/status">Status</a></li>
+        <li><a href="/sys/config">Config</a></li>
+    </ul>
+    <p>Configuration updated.</p>
+    <button id='reboot'>Reboot</button>
+</body>
+<script>
+    const rebootButton = document.getElementById('reboot');
+
+    function handleReboot() {
+        // Your code here
+        console.log('Reboot button clicked!');
+    }
+
+    rebootButton.addEventListener('click', handleReboot);
+</script>
+
+</html>

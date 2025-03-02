@@ -1,5 +1,4 @@
 
-from tkinter import commondialog
 from .led import NeoPixelStrip
 from .motion import CompositeMotion, Motion
 import logging

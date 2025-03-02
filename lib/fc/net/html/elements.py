@@ -24,7 +24,9 @@ class HtmlElement:
             children = [children]
         for key in kwargs.keys():
             if key not in ['attrs','children']:
-                attrs[key] = kwargs[key]        
+                # can't pass an argument named class.  let caller add '_' and remove it
+                nkey = key.strip('_')
+                attrs[nkey] = kwargs[key]        
         self._tag = tag
         self._attrs = attrs
         self._is_self_closing = False
@@ -125,7 +127,7 @@ class HtmlParentElement(HtmlElement):
         self.child(form)
         return form
     
-    def input(self,name,value,intype=None,**kwargs):
+    def input(self,name,value='',intype=None,**kwargs):
         kwargs['name'] = name
         kwargs['value'] = f'{value}' if value is not None else ''
         if intype is not None:
@@ -136,10 +138,31 @@ class HtmlParentElement(HtmlElement):
         self.child(input)
         return input
 
+    def textarea(self,name,value,**kwargs):
+        kwargs['name'] = name
+        text = HtmlTextArea(value,**kwargs)
+        self.child(text)
+        return text
+        
     def select(self,name,selected, vals,**kwargs):
         select = HtmlSelectElement(name,selected,vals,**kwargs)
         self.child(select)
         return select
+        
+class HtmlTextArea(HtmlParentElement):
+    def __init__(self,value='',**kwargs):
+        super().__init__('textarea',**kwargs)
+        self._text = value
+        
+    def get_inner_data(self):
+        if self._text == None:
+            return
+        pos = 0
+        while pos < len(self._text):
+            buf = self._text[pos:1024].encode('utf-8')
+            yield buf
+            pos += len(buf)
+        
         
 class HtmlSelectElement(HtmlParentElement):
     def __init__(self,name,selected,vals,**kwargs):
@@ -222,12 +245,12 @@ class HtmlTdElement(HtmlParentElement):
         return self.tr.table().row()
     
 class Text(HtmlElement):
-    def __init__(self,text):
+    def __init__(self,text=None):
         super().__init__("TEXT")
         self._text = text
     
     def get_data(self):
-        yield self._text
+        yield self._text or ''
     
 class HtmlHead(HtmlParentElement):
     def __init__(self,**kwargs):

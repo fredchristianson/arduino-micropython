@@ -8,6 +8,6 @@
         "fc.net.time": "debug",
         "fc.net.http": "info",
         "fc.net.http.server.req_resp": "debug",
-        "fc.config": "warning"
+        "fc.config": "debug"
     }
 }

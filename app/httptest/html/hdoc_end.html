@@ -1,4 +1,26 @@
 <!-- inserted in after body -->
 <script>
-    alert(1)
+    const jsonTextareas = document.querySelectorAll('textarea.json');
+
+    // Loop through each textarea and format its JSON content
+    jsonTextareas.forEach(textarea => {
+        try {
+            // Get the current text content
+            const rawJson = textarea.value;
+
+            // Parse and re-stringify with formatting
+            const formattedJson = JSON.stringify(JSON.parse(rawJson), null, 2);
+
+            // Update the textarea with formatted JSON
+            textarea.value = formattedJson;
+
+            // Optional: Adjust height to show all content
+            textarea.style.height = '';
+            textarea.style.height = (textarea.scrollHeight + 20) + 'px';
+        } catch (error) {
+            console.error('Invalid JSON in textarea:', error);
+            // Optionally show error to user
+            // textarea.value = 'Error: Invalid JSON\n' + rawJson;
+        }
+    });
 </script>

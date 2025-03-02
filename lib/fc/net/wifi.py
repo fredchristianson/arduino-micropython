@@ -67,7 +67,7 @@ def save_config(filename='/data/fc_wifi.json'):
         _ssid = None
         _password = None      
         
-async def wifi_connect(app_name,retries=5, delay_seconds=2):
+async def wifi_connect(app_name,retries=5, delay_seconds=4):
     global _ssid, _password,station
     log.debug("activate wifi station")
     station.active(True)
@@ -79,7 +79,7 @@ async def wifi_connect(app_name,retries=5, delay_seconds=2):
     log.info(f"Connecting wifi.  app={app_name} ssid={_ssid} password={_password} connection={station.isconnected()}")
     if not station.isconnected() and _ssid:
         try:
-            log.info(f"connect({_ssid},{_password})  retries={retries} type={type(retries)}  delay={delay_seconds}")
+            log.info(f"connect({_ssid},{_password})  retries={retries}   delay={delay_seconds}")
             station.connect(_ssid,_password)
             retry = 0
             while not station.isconnected() and (retry < retries):
@@ -148,7 +148,9 @@ async def wifi_web_configure(app_name):
         station.active(True)
         ap.active(True)
         essid = f"config-{app_name}-{get_ip_addr(ap)}"
+        log.info(f"essid {essid}")
         ap.config(essid=essid,password='',authmode=AUTH_OPEN)
+        log.info("create HTTP server")
         server = HttpServer(port=8080,host='0.0.0.0')
         router = HttpRouter([
                                                     ('GET','/',get_form),

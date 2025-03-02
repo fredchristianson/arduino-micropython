@@ -240,7 +240,10 @@ class HttpResponse(ReqResp):
         self.content_len = None
         self.mime_type = None
         self.body = None
+        self._on_complete = []
         
+    def on_complete(self,callback):
+        self._on_complete.append(callback)
         
     def status(self,status_code,text=None):
         self.status_code = status_code
@@ -252,12 +255,16 @@ class HttpResponse(ReqResp):
     def content_length(self,len):
         self.content_len = len
         
-    async def send_headers(self):
+    async def send_headers(self,content):
         log.debug('send headers')
         if not self.headers.get('connection'):
             self.headers.set('Connection','close')
         w = self.writer
-        w.write(f"HTTP/1.1 {self.status_code} {self.status_text}\r\n".encode("utf-8"))
+        code = self.status_code
+        text = self.status_text
+        if hasattr(content,'get_status'):
+            code,text = content.get_status()
+        w.write(f"HTTP/1.1 {code or self.status_code} {text or self.status_text}\r\n".encode("utf-8"))
         await w.drain()
         if self.mime_type is not None:
             self.headers.set_default('Content-Type',self.mime_type )
@@ -281,12 +288,14 @@ class HttpResponse(ReqResp):
         
     async def send_content(self,content):
         try:
+            if hasattr(content,'prepare_response'):
+                content.prepare_response(self.request,self)
             chunk_writer = ChunkWriter(self.writer)
             log.debug("write: page")
             self.mime_type = content.get_mime_type()       
 
             log.debug(f"Mime type %s",self.mime_type)
-            await self.send_headers()
+            await self.send_headers(content)
 
             data = content.get_data()
             for chunk in data:
@@ -299,6 +308,8 @@ class HttpResponse(ReqResp):
             await self.writer.drain()
             if hasattr(content,'on_sent'):
                 content.on_sent()
+            for onsent in self._on_complete:
+                onsent()
 
         except Exception as ex:
             log.exception("Cannot send data",exc_info=ex)

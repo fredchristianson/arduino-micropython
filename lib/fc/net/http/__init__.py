@@ -6,3 +6,4 @@ from .response_content import *
 from .html_response import *
 from .json_response import *
 from .file_response import *
+from .redirect_response import *

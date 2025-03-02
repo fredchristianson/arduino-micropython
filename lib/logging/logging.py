@@ -6,6 +6,7 @@ import time
 import json
 import _thread
 import machine
+import gc
 
 # secondary threads seem to have a small stack and can't do formats that require deep calls
 _primary_thread = _thread.get_ident()
@@ -49,7 +50,8 @@ _stream = sys.stderr
 #_default_fmt = "%(asctime)s:%(levelname)s:%(name)s:%(message)s"
 #_default_fmt = "{secs:8.3f}:{levelname:7}:{name:20}: {message}"
 #_default_fmt = "{asctime:18}:{thread}:{levelname:7}:{name:20}: {message}"
-_default_fmt = "{asctime:8}:{levelname:7}:{name:20}: {message}"
+#_default_fmt = "{asctime:8}:{levelname:7}:{name:20}: {message}"
+_default_fmt = "{asctime:8}:{levelname:7}:{mem:6}:{name:20}: {message}"
 #_default_datefmt = "%Y-%m-%d %H:%M:%S"
 _default_datefmt = "%H:%M:%S"
 
@@ -163,7 +165,8 @@ class Formatter:
             "secs": record.msecs/1000.0,
             "asctime": record.asctime,
             "levelname": record.levelname,
-            "thread": _thread.get_ident()
+            "thread": _thread.get_ident(),
+            "mem":gc.mem_free()
         })
 
 
