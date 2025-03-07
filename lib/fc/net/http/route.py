@@ -1,11 +1,33 @@
+
 import logging
 import os
-from fc.util import Path
-from .req_resp import Values
-from .mime import get_mime_type_from_ext
-from .file_response import FileResponse
+# from fc.util import join_path
+# from .req_resp import Values
+# from .mime import get_mime_type_from_ext
+# from .file_response import FileResponse
+
+GET='GET'
+POST='POST'
+PUT='PUT'
+DELETE='DELETE'
+
+
+# dict so 'from route import METHOD' gives all methods to use like METHOD.GET
+METHOD={
+    GET: 'GET',
+    POST: 'POST',
+    PUT: 'PUT',
+    DELETE: 'DELETE'
+}
 
 log = logging.getLogger("fc.net.http.route")
+
+def create_router(name, routes=[]):
+    return {'name':name,'routes':routes}
+
+def add_route(route_table,method,path,handler):
+    route_table['routes'].append((method,path,handler))
+    
 
 class RoutePath:
     def __init__(self,path) -> None:
@@ -76,6 +98,8 @@ class HttpRoute:
         return f"HttpRoute {self.path}"        
     def __repr__(self):
         return f"HttpRoute {self.path}"
+
+
 
 class HttpRouter:
     def __init__(self,routes=[]):

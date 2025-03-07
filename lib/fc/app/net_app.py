@@ -1,12 +1,12 @@
 import logging;
 import asyncio
-
+from fc.modload import loader
 
 from .app import App
 
 import gc
 
-log = logging.getLogger("fc.netapp")
+log = logging.getLogger("fc.app.netapp")
 
 
 class NetApp(App):
@@ -23,32 +23,14 @@ class NetApp(App):
         return self._http
         
     async def _setup(self):
-        from .system_routes import SystemRoutes
-        from fc.net.mqtt import mqtt_check_connection     
-        from fc.hw.device import create_devices        
+        log.debug("_setup")
         
-        # set up the app
-        log.debug("setup app")
-        await self._setup_wifi()
-        log.debug("wifi setup done")
-        log.debug("Time setup running")
-        port = self.get_http_port()
-        if port is not None:       
-            log.info(f"setup HTTP server on port {port}")
-            from fc.net.http import HttpServer, HttpRouter
-            self._http = HttpServer(port)
-            self._sys_router = SystemRoutes()
-            self._http.add_router(self._sys_router,"/sys")
+        with loader("fc.app.net_app_impl") as impl:
+            await impl.setup(self)
 
-            self._app_router = HttpRouter()
-            self._http.add_router(self._app_router)
-            self.setup_routes(self._app_router)
-            await self._http.start()
-        asyncio.create_task(self._check_network())
-        asyncio.create_task(self._update_time())
-        self._devices = create_devices(self._config.get("devices",None))
         self.is_set_up = True
-        
+        log.info("NetApp setup complete")       
+         
     async def _update_time(self):
         from fc.net import NetTime        
         while True:
@@ -57,23 +39,6 @@ class NetApp(App):
             log.debug("update time started. sleep for an hour")
             await asyncio.sleep(60*60)  #update every hour
             log.debug("update_time again")
-            
-    async def _check_network(self):
-        from fc.net.wifi import wifi_connect, wifi_web_configure, wifi_check_connection
-        from fc.net.mqtt import mqtt_check_connection 
-        while True:
-            await asyncio.sleep_ms(50)
-            await wifi_check_connection()
-            await mqtt_check_connection()
-    
-    async def _setup_wifi(self):
-        from fc.net.wifi import wifi_connect, wifi_web_configure, wifi_check_connection
-        log.info("setup wifi")
-        gc.collect()
-        
-        while not await wifi_connect(self.get_name(),15,delay_seconds=4):
-            await wifi_web_configure(self.get_name())
-        
         
     def get_http_port(self):
         """derived class can override to change the port

@@ -2,11 +2,12 @@ from micropython import const
 import os
 import io
 import sys
-import time
-import json
 import _thread
 import machine
 import gc
+from fc.modload import loader
+from fc.datetime import datetime
+import time
 
 # secondary threads seem to have a small stack and can't do formats that require deep calls
 _primary_thread = _thread.get_ident()
@@ -146,7 +147,6 @@ class Formatter:
         return "asctime" in self.fmt
 
     def formatTime(self, datefmt, record):
-        from fc.datetime import datetime
         # secondary threads run out of stack formating a datetime so use RTC for them
         if _primary_thread == _thread.get_ident():
             now = datetime.now()
@@ -159,6 +159,7 @@ class Formatter:
     def format(self, record):
         if self.usesTime():
             record.asctime = self.formatTime(self.datefmt, record)
+        gc.collect()
         return self.fmt.format(**{
             "name": record.name,
             "message": record.message,
@@ -328,21 +329,22 @@ if hasattr(sys, "atexit"):
     sys.atexit(shutdown)
 
 
-            
-def config(filename='data/logging.json'):
-    global _logger_level_dict
-    global _DEFAULT_LEVEL
-    try:
-        with open(filename) as file:
-            config = json.load(file)
-            levels = config['levels']
-            _logger_level_dict = levels
-            if 'default' in levels:
-                level = levels['default']
-                levelno =  getLevelNumber(level)
-                _DEFAULT_LEVEL = levelno
 
             
+def config(filename='data/logging.json'):
+    global _logger_level_dict,cnt
+    global _DEFAULT_LEVEL
+
+    try:
+        with loader('json') as json:
+            with open(filename) as file:
+                cng = json.load(file)
+                levels = cng['levels']
+                _logger_level_dict = levels
+                if 'default' in levels:
+                    level = levels['default']
+                    levelno =  getLevelNumber(level)
+                    _DEFAULT_LEVEL = levelno          
     except Exception as ex:
         print(f"cannot open logging config {filename}.  {ex}")
         

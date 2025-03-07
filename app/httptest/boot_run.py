@@ -1,8 +1,8 @@
 # boot.py -- run on boot-up
 #
 # data/logging.json is automatically loaded
+print("boot config logging")
 import logging
-logging.config("/data/logging.json")  
 
 from http_test import HttpTestApp
 app = HttpTestApp()

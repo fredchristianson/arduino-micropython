@@ -2,12 +2,13 @@
     "levels": {
         "default": "info",
         "fc": "debug",
-        "fc.app": "info",
+        "fc.app": "debug",
         "fc.net": "debug",
         "fc.net.wifi": "debug",
         "fc.net.time": "debug",
         "fc.net.http": "info",
         "fc.net.http.server.req_resp": "debug",
-        "fc.config": "debug"
+        "fc.config": "info",
+        "fc.modload": "info"
     }
 }

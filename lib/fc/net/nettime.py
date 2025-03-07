@@ -23,19 +23,19 @@ def get_timedelta(offset):
 
 
 
-def update_timezone(cls):
+def update_timezone():
     retries = 5
     while retries > 0:
         try:
             resp = urequests.get('http://worldtimeapi.org/api/ip') 
             if resp.status_code == 200:
                 wtime = resp.json()
-                cls.is_dst = wtime['dst']
-                cls.dst_offset = timedelta(hours=1) if cls.is_dst else timedelta(hours=0)
-                cls.gmt_offset = get_timedelta(wtime['utc_offset'])
-                #tz = timezone(cls.gmt_offset,cls.is_dst,wtime['timezone'],wtime['abbreviation'],cls.dst_offset)
-                offset = cls.dst_offset + cls.gmt_offset
-                log.info(f"gmt offset {cls.gmt_offset}  dstoffset {cls.dst_offset}.  total offset {offset}")
+                is_dst = wtime['dst']
+                dst_offset = timedelta(hours=1) if is_dst else timedelta(hours=0)
+                gmt_offset = get_timedelta(wtime['utc_offset'])
+                #tz = timezone(gmt_offset,is_dst,wtime['timezone'],wtime['abbreviation'],dst_offset)
+                offset = dst_offset + gmt_offset
+                log.info(f"gmt offset {gmt_offset}  dstoffset {dst_offset}.  total offset {offset}")
                 datetime.set_tzoffset_minutes(offset)
                 log.info(f"got datetime offset {offset}")
             else:
@@ -50,10 +50,9 @@ def update_timezone(cls):
 
             time.sleep(2)
             
-def update_time(cls):
+def update_time(dummy=None):
     try:
-        if cls.tz is None:
-            update_timezone(cls)
+        update_timezone()
         ntptime.settime()
         now = datetime.now() 
         log.info(f"Time is configured {now.format()}")
@@ -63,13 +62,5 @@ def update_time(cls):
 
         
 
-class NetTime:
-    is_dst = None
-    dst_offset = None
-    gmt_offset = None
-    tz = None
-    
-    @classmethod
-    async def update(cls):
-        args = (cls,)
-        _thread.start_new_thread(update_time,args)
+def update(dummy=None):
+    _thread.start_new_thread(update_time,(dummy,))

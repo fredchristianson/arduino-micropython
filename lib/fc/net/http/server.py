@@ -1,3 +1,4 @@
+from codecs import StreamReader, StreamWriter
 import logging
 import asyncio
 from .route import StaticFileRouter
@@ -132,3 +133,58 @@ class HttpServer:
         self.tcp_server.close()
         await self.tcp_server.wait_closed()
         self.tcp_server = None
+        
+        
+# async def process_req(reader:StreamReader,writer:StreamWriter):
+#     reader.readline()
+#     writer.drain()
+#     writer.close()
+#     await writer.wait_closed()
+#     return
+
+async def startold(host,port):
+    tcp_server = await asyncio.start_server(process_req,host,port)
+    return (tcp_server,)
+
+async def read_headers(reader):
+    line = await reader.readline()
+    if not line:
+        return
+    line = line.strip()
+    if line.startswith('HTTP/1.1 200 OK'):
+        return line
+    else:
+        raise Exception(f'unknown response: {line}')
+    
+async def read_req(reader:StreamReader):
+    req = {}
+    line = await reader.readline()
+    if not line:
+        break
+    line = line.strip()
+    if line == '':
+        continue
+    if line.startswith('GET '):
+        req['method'] = line[4:]
+        req['path'] = line[5:]
+        break
+    elif line.startswith('POST'):
+        req['method'] = line[4:]
+        req['path'] = line[5:]
+        req['body'] = await reader.read()
+        break
+    else:
+        raise Exception(f'unknown request: {line}')
+    req['headers'] = read_headers(reader)
+    return req
+
+async def process_req(reader:StreamReader,writer:StreamWriter):
+    req = await read_req(reader)
+    writer.drain()
+    writer.close()
+    await writer.wait_closed()
+    return
+
+async def start(host,port):
+    tcp_server = await asyncio.start_server(process_req,host,port)
+    return tcp_server
