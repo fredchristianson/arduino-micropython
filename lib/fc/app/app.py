@@ -1,7 +1,7 @@
 import logging;
 import asyncio
 from machine import WDT
-from fc.modload import loader
+from lib.fc.modload.modload import loader
 import gc
 
 log = logging.getLogger("fc.app")

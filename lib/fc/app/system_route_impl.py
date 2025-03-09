@@ -1,6 +1,6 @@
 import logging
 
-from fc.modload import loader
+from lib.fc.modload.modload import loader
 # from fc.net.http import Redirect
 # import time
 # import math

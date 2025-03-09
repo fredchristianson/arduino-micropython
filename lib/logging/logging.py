@@ -6,7 +6,7 @@ import _thread
 import machine
 import gc
 from fc.modload import loader
-from fc.datetime import datetime
+from fc import datetime
 import time
 
 # secondary threads seem to have a small stack and can't do formats that require deep calls
@@ -150,7 +150,7 @@ class Formatter:
         # secondary threads run out of stack formating a datetime so use RTC for them
         if _primary_thread == _thread.get_ident():
             now = datetime.now()
-            return now.format(_default_datefmt)
+            return datetime.format(now,_default_datefmt)
         else:
             rtc = machine.RTC()
             dt = rtc.datetime()

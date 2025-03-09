@@ -1,6 +1,6 @@
 import logging;
 import asyncio
-from fc.modload import loader
+from lib.fc.modload.modload import loader
 
 from .app import App
 

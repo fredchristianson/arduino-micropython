@@ -1,6 +1,6 @@
 import logging
 
-from fc.modload import loader
+from lib.fc.modload.modload import loader
 
  
 log = logging.getLogger('fc.net.sys')
