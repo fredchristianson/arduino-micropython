@@ -17,11 +17,8 @@ def update_timezone():
             if resp.status_code == 200:
                 wtime = resp.json()
                 log.debug(f"{wtime}")
-                is_dst = wtime['dst']
-                dst_offset = 60 if is_dst else 0
                 gmt_offset = datetime.parse_tz_offset_minutes(wtime['utc_offset'])
-                offset = dst_offset + gmt_offset
-                log.info(f"gmt offset {gmt_offset}  dstoffset {dst_offset}.  total offset {offset}")
+                log.info(f"gmt offset {gmt_offset} ")
             else:
                 log.error(f"failed to get http://worldtimeapi.org {resp}")
             return 

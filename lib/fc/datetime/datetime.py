@@ -5,7 +5,6 @@ It may be different on different devices.
 """
 
 import time as tmod
-from fc.modload import loader
 from collections import namedtuple
 
 IMPL = 'fc.datetime.impl.datetime'
@@ -14,32 +13,72 @@ DateTime = namedtuple('DateTime',['year','month','day','hour','minute','second',
 
 default_tz_offset_minutes = None
 
+def to_time_seconds(dt):
+    # need to add weekday and yearday for tmod.  can be 0
+    t = tmod.mktime(dt+(0,0))
+    return t
+
+def from_time_seconds(seconds, tz_offset):
+    """ tz_offset isn't used for calc.  just added to DateTime"""
+    tm = tmod.gmtime(seconds)
+    #remove weekday and year day and add tz offset
+    return DateTime(*tm[0:6],tz_offset)
+
 def parse_tz_offset_minutes(min_str, set_default = True):
     global default_tz_offset_minutes
-    print(f"parse tz offset {min_str}")
     minutes = 0
     try:
-        with loader(IMPL) as impl:
-            minutes = impl.parse_tz_offset_minutes(min_str)
+        sign = 1
+        val = min_str
+        if type(val) == str:
+            if '-' in val:
+                val = val.split('-')[-1]
+                sign = -1
+            if '+' in val:
+                val = val.split('+')[-1]
+                sign = 1
+            if ':' in val:
+                hm = val.split(':')
+                val = (int(hm[0])*60+int(hm[1])) * sign
+                
+            else:
+                val=int(val) * sign
+        elif type(val) == float:
+            minutes = val*60
+        else:
+            val = int(val)*60*sign    
+        minutes = val
+            
     except Exception as ex:
         print(ex)
         minutes = 0
     if set_default:
         default_tz_offset_minutes = minutes
-    print(f"minutes {minutes}")
     return minutes
 
 def datetime(year=0, month=0, day=0, hour=0, minute=0, second=0,tzoffset_minutes = None):  
     global default_tz_offset_minutes
     tz = tzoffset_minutes or default_tz_offset_minutes or 0
-    return DateTime(year,month,day,hour,minute,second,tz)
+
+    dt = DateTime(year,month,day,hour,minute,second,tz)
+
+    # add tz_offset_minutes.  offset is stored in DateTime to know how the other
+    # values relate to GMT.
+    secs = to_time_seconds(dt)
+    osecs = secs
+    secs += tz*60
+    
+    dttz = from_time_seconds(secs,tzoffset_minutes)
+    tzsecs = to_time_seconds(dttz)
+    print(f"secs {osecs} {secs} -- {tzsecs}")
+    return dttz
 
      
 def now(tzoffset_minutes = None):  
     global default_tz_offset_minutes
     tz = tzoffset_minutes or default_tz_offset_minutes or 0
     gmt = tmod.gmtime(tmod.time())[0:6] +(tz,)
-    return DateTime(*gmt)
+    return datetime(*gmt)
         
 def fromisoformat(dtstr): 
     dstr = dtstr  
