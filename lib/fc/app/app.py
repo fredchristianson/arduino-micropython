@@ -25,7 +25,7 @@ class App:
         self.name = name
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(lambda loop,context: self.exception_handler(loop,context))
-        self._debug = True
+        self._debug = self._config.get('app.debug',False)
         # TODO: allow gc threshold to be set in config
         gc.threshold(1024*16)  # allocate when 16k have been freed
         gc.collect()
@@ -48,8 +48,8 @@ class App:
         if not self.is_set_up:
             await self._setup()
         self.is_set_up = True
-        self.on_setup_complete()
         self.initialize_devices()
+        self.on_setup_complete()
         
         log.debug("loop forever")
         asyncio.get_event_loop().run_forever()

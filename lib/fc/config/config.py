@@ -1,21 +1,27 @@
 import logging
-import json
+
 
 log = logging.getLogger("fc.config")
 
+
+
 class Config:
-    def __init__(self,save_method = None):
-        self._values = {}
-        self.save_method = save_method
+    def __init__(self,vals = {},parent=None):
+        log.debug(f"Config {vals}")
+        self._values = vals
+        self._parent = parent
+        for k in self._values.keys():
+            (f"key {k}")
+            if type(self._values[k]) == dict:
+                self._values[k] = Config(self._values[k])
+            elif type(self._values[k]) == list:
+                for i in range(len(self._values[k])):
+                    if type(self._values[k][i]) == dict:
+                        self._values[k][i] = Config(self._values[k][i])
+          
+    def save(self):
+        self._parent.save()
         
-    def to_json(self):
-        return json.dumps(self._values or {})
-    
-    def from_json(self,json_text,save=True):
-        self._values = json.loads(json_text)
-        if save and self.save_method:
-            self.save_method(self)
-            
     def get(self, key, default=None):
         levels = key.split('.')
         val = self._values
@@ -25,20 +31,8 @@ class Config:
             else:
                 return default
         return val
-    
-    def update(self,values,save=True):
-        """values is a dictionary of json path to value.  Values are updated or added to the config. 
-
-        Args:
-            values (dict): json path to value
-            save (bool, optional): if true the config is saved if there is a save method. Defaults to True.
-        """
-        for path,value in values.items():
-            self.set(path,value,save=False)
-        if save and self.save_method:
-            self.save_method(self)
                     
-    def set(self, key, value, save=True):
+    def set(self, key, value):
         levels = key.split('.')
         val = self._values
         for level in levels[:-1]:
@@ -46,35 +40,55 @@ class Config:
                 val[level] = {}
             val = val[level]
         val[levels[-1]] = value
-        if save and self.save_method:
-            self.save_method(self)
     
-    def data(self):
-        return self._values
-
-    def list_values(self):
-        editables = []
-        const = []
-        stack = [(self._values,[])]
-        while stack:
-            val,path = stack.pop()
-            if isinstance(val,dict):
-                if '_editable' in val and val['_editable']:
-                    for k,v in val.items():
-                        if not k.startswith('_'):
-                            editables.append({'path':'.'.join(path)+'.'+k,'value':v,'definition': val})
-                for k,v in val.items():
-                    stack.append((v,path+[k]))
-            elif isinstance(val,list):
-                for i,v in enumerate(val):
-                    stack.append((v,path+[f'[{i}]']))
-            elif path:
-                
-                const.append({'path':'.'.join(path),'value':val})
-        return editables,const
+                    
+    def remove(self, key):
+        levels = key.split('.')
+        val = self._values
+        for level in levels[:-1]:
+            if level not in val:
+                val[level] = {}
+            val = val[level]
+        if levels[-1] in val:
+            del val[levels[-1]]
     
+    def __getitem__(self,key):
+        return self.get(key)
+    
+    def __setitem__(self,key,val):
+        self.set(key,val)
+    
+    
+    def __delitem__(self,key):
+        self.remove(key)
         
-def save_config(config,file="/data/config.json"):
+    def __getattr__(self,name):
+        return self.get(name)
+    
+    def __iter__(self):
+        return iter(self._values)
+    
+    def __len__(self):
+        return len(self._values)
+    
+    def __contains__(self,key):
+        return key in self._values  
+    
+    def __repr__(self):
+        return repr(self._values)
+    
+    def __str__(self):
+        return f"{Config}: {self._values}"
+   
+class RootConfig(Config):
+    def __init__(self,values,file):
+        super().__init__(values)
+        self._filename= file
+        
+    def save(self,filename=None):
+        save(self,filename or self._filename)
+        
+def save(config,file="/data/config.json"):
     import json
     try:
         log.debug(f"Saving config file {file}")
@@ -83,15 +97,14 @@ def save_config(config,file="/data/config.json"):
     except Exception as e:
         log.exception(f"Failed to save config file {file}",e)
         
-def load_config(file="/data/config.json"):
+def load(file="/data/config.json"):
     import json
     import gc
     try:
         log.debug(f"Loading config file {file}.  memfree: {gc.mem_free()}")
         with open(file) as f:
-            save = lambda config: save_config(config,file)
-            config = Config(save)
-            config._values = json.load(f)
+            vals = json.load(f)
+            config = RootConfig(vals,file)
             log.debug(f"config: {config._values} .  memfree: {gc.mem_free()}")
             return config
     except Exception as e:
