@@ -3,7 +3,8 @@
         "name": "Cupboard Lights",
         "version": "1.0.0",
         "description": "Control the lights in the cupboard",
-        "author": "Fred Christianson"
+        "author": "Fred Christianson",
+        "debug": true
     },
     "devices": [
         {
