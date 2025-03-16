@@ -6,59 +6,61 @@ log = logging.getLogger("fc.config")
 
 
 class Config(dict):
-    def __init__(self,vals = {},parent=None,depth=0):
+    def __init__(self,vals = {},parent=None):
         super().__init__()
-        tabs = '\t\t\t\t\t\t\t\t'[0:depth]
-        log.debug(f"{tabs}Config {vals}")
-        self._values = vals
+        self.set_values(vals)
         self._parent = parent
-        for k in self._values.keys():
-            log.debug(f"{tabs}key {k}")
-            if type(self._values[k]) == dict:
-                log.debug(f"{tabs}dict")
-                self._values[k] = Config(self._values[k],self,depth+1)
-            elif type(self._values[k]) == list:
-                log.debug(f"{tabs}list")
-                for i in range(len(self._values[k])):
-                    if type(self._values[k][i]) == dict:
-                        self._values[k][i] = Config(self._values[k][i],self,depth+1)
-        log.debug(f"{tabs}done")
+        
+    def set_values(self,vals):
+        log.never(f"Config {vals}")
+        for k in vals.keys():
+            log.never(f"key {k}")
+            if type(vals[k]) == dict:
+                log.never(f"dict")
+                super().__setitem__(k,Config(vals[k],self))
+            elif type(vals[k]) == list:
+                log.never(f"list")
+                l = []
+                super().__setitem__(k,l)
+                for i in range(len(vals[k])):
+                    if type(vals[k][i]) == dict:
+                        l.append(Config(vals[k][i]))
+            else:
+                super().__setitem__(k,vals[k])
+        log.never(f"done")
           
     def save(self):
         self._parent.save()
         
     def get(self, key, default=None):
-        levels = key.split('.')
-        val = self._values
-        for level in levels:
-            if level in val:
-                val = val[level]
-            else:
-                return default
-        return val
+        if '.' in key:
+            first,rest = key.split('.',1)
+            child = super().get(first)
+            return default if child is None else child.get(key,default)
+        else:
+            return super().get(key,default)
+
                     
     def set(self, key, value):
         levels = key.split('.')
-        val = self._values
+        val = self
         for level in levels[:-1]:
             if level not in val:
                 val[level] = {}
             val = val[level]
-        val[levels[-1]] = value
+        super().__setitem__(levels[-1],value)
     
                     
     def remove(self, key):
         levels = key.split('.')
-        val = self._values
+        val = self
         for level in levels[:-1]:
             if level not in val:
                 val[level] = {}
             val = val[level]
         if levels[-1] in val:
-            del val[levels[-1]]
+            super().__delitem__(levels[-1])
             
-    def keys(self):
-        return self._values.keys()
     
     def __getitem__(self,key):
         print(f"get item {key}")
@@ -74,21 +76,11 @@ class Config(dict):
     def __getattr__(self,name):
         return self.get(name)
     
-    def __iter__(self):
-        print("iter)")
-        return iter(self._values)
-    
-    def __len__(self):
-        return len(self._values)
     
     def __contains__(self,key):
-        return key in self._values  
+        return key in self.keys()
     
-    def __repr__(self):
-        return repr(self._values)
-    
-    def __str__(self):
-        return f"{self._values}"
+
    
 class RootConfig(Config):
     def __init__(self,values,file):
@@ -98,12 +90,16 @@ class RootConfig(Config):
     def save(self,filename=None):
         save(self,filename or self._filename)
         
+    def set_values(self,vals):
+        self.clear()
+        super().set_values(vals)
+        
 def save(config,file="/data/config.json"):
     import json
     try:
         log.debug(f"Saving config file {file}")
         with open(file,'w') as f:
-            json.dump(config._values,f)
+            json.dump(config,f)
     except Exception as e:
         log.exception(f"Failed to save config file {file}",e)
         
@@ -116,7 +112,7 @@ def load(file="/data/config.json"):
             vals = json.load(f)
             config = RootConfig(vals,file)
             #log.debug(f"config: {config._values} .  memfree: {gc.mem_free()}")
-            print(f"config: {config._values} .  memfree: {gc.mem_free()}")
+            #print(f"config: {config} .  memfree: {gc.mem_free()}")
             return config
     except Exception as e:
         log.exception(f"Failed to load config file {file}",exc_info=e)

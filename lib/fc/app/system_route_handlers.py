@@ -1,5 +1,6 @@
 import logging
 import machine
+import json
 from fc.modload.modload import loader
 from fc.net.http.router import Redirect
 from .app import App
@@ -14,7 +15,7 @@ from .app import App
 # from fc.datetime import datetime
 # import machine
  
-log = logging.getLogger('fc.net.sys')
+log = logging.getLogger('fc.app.http.sys')
 
 
 def status_page(req):
@@ -24,13 +25,13 @@ def status_page(req):
         min = math.floor(secs/60)   
         hours = math.floor(min/60)
         days = math.floor(hours/24)
-        now = datetime.datetime.now()
+        now = datetime.now()
         
         doc = html.HtmlDoc()
         body=doc.body()
         table =body.namevalue_table()
 
-        table.add("Time",now.isoformat())
+        table.add("Time",datetime.isoformat(now))
         table.add("Uptime",f"{days} days {hours%24} hours {min%60} minutes {secs%60} seconds")
 
         table.add("Free Memory",f"{gc.mem_free():,} bytes")
@@ -60,10 +61,12 @@ def config_page(req):
     
 def update_config(req):
     with loader('fc.app') as app:
-        #log.debug(f"Req data: {req.data}")
-        json = req.get('config') # {k[8:]:req.data[k] for k in req.data.keys() if k.startswith('config--')}
-        log.debug(f"config: {json}")
-        app.App.CONFIG.from_json(json)
+        log.debug(f"Req data: {req}")
+        config = req['data']['config'] # {k[8:]:req.data[k] for k in req.data.keys() if k.startswith('config--')}
+        log.debug(f"config: {type(config)} {config}")
+        vals = json.loads(config)
+        log.debug(f"Vals: {vals}")
+        app.App.CONFIG.set_values(vals)
         #return await self.config_page(req,"Configuration Updated")
         return Redirect('/config_updated.html')
 

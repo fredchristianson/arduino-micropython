@@ -12,6 +12,8 @@ log = logging.getLogger('fc.net.http.http_handler')
 def url_decode(s):
     if not s:
         return None
+    if type(s) == bytes:
+        s = s.decode('utf-8')
     result = ""
     i = 0
     while i < len(s):
@@ -25,11 +27,26 @@ def url_decode(s):
                 # If invalid hex, treat it as literal
                 result += s[i]
                 i += 1
+        elif s[i] == '+':
+            result += ' '
+            i+= 1
         else:
             result += s[i]
             i += 1
     return result.strip()
 
+def parse_params(params):
+    result = {}
+    if params:
+        pairs = params.split('&')
+        for pair in pairs:
+            if '=' in pair:
+                key,value = pair.split('=',1)
+                result[url_decode(key)] = url_decode(value)
+            else:
+                params[url_decode(pair)] = True
+    return result
+                
 def parse_req_url(url):
     path = url
     query = None
@@ -37,14 +54,7 @@ def parse_req_url(url):
 
     if '?' in path:
         path,query = path.split('?',1)
-        if query:
-            pairs = query.split('&')
-            for pair in pairs:
-                if '=' in pair:
-                    key,value = pair.split('=',1)
-                    params[url_decode(key)] = url_decode(value)
-                else:
-                    params[url_decode(pair)] = ''
+        params = parse_params(query)
 
     components = {
         'full': url,
@@ -74,13 +84,36 @@ async def parse_headers(reader):
         headers[url_decode(key)] = url_decode(value)
     return headers
 
+async def parse_form_data(reader,len):
+    line = await reader.read(len)
+    log.always(f"parse_form_data: {line}")
+    line = url_decode(line)
+    log.always(f"decoded: {line}")
+    
+    data = parse_params(line)
+    log.always(f"data: {data}")
+    return data
+
+
 async def read_request(reader):
     req = {}
     method,url = await parse_req_line(reader)
     req['method'] = method
     req['url'] = url
     req['headers'] = await parse_headers(reader)
+    data = {}
+    data.update(req['url']['params'])
     req['body_stream'] = reader
+    if 'Content-Type' in req['headers']:
+        ctype = req['headers']['Content-Type']
+        clen = int(req['headers']['Content-Length'])
+        if ctype == 'application/x-www-form-urlencoded':
+            data.update(await parse_form_data(reader,clen))
+        elif ctype == 'application/json':
+            len = int(req['headers']['Content-Length'])
+            content = await reader.read(len)
+            data = json.loads(content)
+    req['data'] = data
     return req
 
 async def find_handler(routers,req):

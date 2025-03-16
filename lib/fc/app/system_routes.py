@@ -3,7 +3,7 @@ import logging
 from lib.fc.modload.modload import loader
 
  
-log = logging.getLogger('fc.net.sys')
+log = logging.getLogger('fc.app.http.sys')
 
 
 def status_page(req):
