@@ -1,5 +1,4 @@
-from fc.net.http import HtmlResponse
-from fc.util import Path
+from fc.util import join_path
 import logging
 
 log = logging.getLogger("fc.net.html")
@@ -39,7 +38,8 @@ class HtmlElement:
     def parent(self):
         return self._parent
         
-    def get_data(self):
+    def get_data(self,req=None):
+        """req is the http request"""
         yield self.start_tag()
         yield from self.get_inner_data()
         if not self._is_self_closing:
@@ -264,7 +264,7 @@ class FileElement(HtmlElement):
     def __init__(self,filepath, html_directory = '/html',buf_size=1024):
         super().__init__("FILE")
         
-        self._filename = Path.join(html_directory,filepath)    
+        self._filename = join_path(html_directory,filepath)    
         log.info(f"File element: {self._filename}")
         self._buf_size = buf_size
     
@@ -294,7 +294,8 @@ class HtmlDoc(HtmlParentElement):
         self.child(FileElement('hdoc_end.html'))
         
          
-    def get_mime_type(self):
+    def get_mime_type(self,req=None):
+        # req is HTTP request if called from a request handler
         return "text/html"
 
     def head(self):

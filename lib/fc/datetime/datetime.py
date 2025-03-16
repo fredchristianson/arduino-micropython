@@ -70,7 +70,6 @@ def datetime(year=0, month=0, day=0, hour=0, minute=0, second=0,tzoffset_minutes
     
     dttz = from_time_seconds(secs,tzoffset_minutes)
     tzsecs = to_time_seconds(dttz)
-    print(f"secs {osecs} {secs} -- {tzsecs}")
     return dttz
 
      

@@ -6,25 +6,25 @@ from lib.fc.modload.modload import loader
 log = logging.getLogger('fc.net.sys')
 
 
-async def status_page(req,resp):
-    with loader('fc.app.system_route_impl') as impl:
-        return await impl.status_page(req,resp)
+def status_page(req):
+    with loader('fc.app.system_route_handlers') as impl:
+        return  impl.status_page(req)
         
-async def config_page(req,resp,message = "Configuration"):
-    with loader('fc.app.system_route_impl') as impl:
-        return await impl.config_page(req,resp)
+def config_page(req):
+    with loader('fc.app.system_route_handlers') as impl:
+        return  impl.config_page(req)
     
-async def update_config(req,resp):
-    with loader('fc.app.system_route_impl') as impl:
-        return await impl.update_config(req,resp)
+def update_config(req):
+    with loader('fc.app.system_route_handlers') as impl:
+        return  impl.update_config(req)
         
-async def reboot(req,resp):
-    with loader('fc.app.system_route_impl') as impl:
-        return await impl.reboot(req,resp)
+def reboot(req):
+    with loader('fc.app.system_route_handlers') as impl:
+        return  impl.reboot(req)
 
 
 async def create_routes():
-    with loader('fc.net.http.route') as routes:
+    with loader('fc.net.http.router') as routes:
         GET = routes.GET
         POST = routes.POST
         router = routes.create_router('System')

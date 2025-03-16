@@ -115,6 +115,7 @@ async def wifi_check_connection():
                 return
             await asyncio.sleep(10)
         await asyncio.sleep(5)
+    return get_station_ip()  # ip address may have changed
 
 _config_message = "Select SSID"
 _stop_event = asyncio.Event()

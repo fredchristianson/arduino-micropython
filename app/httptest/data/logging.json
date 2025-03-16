@@ -4,11 +4,11 @@
         "fc": "debug",
         "fc.app": "debug",
         "fc.net": "debug",
-        "fc.net.wifi": "debug",
-        "fc.net.time": "debug",
-        "fc.net.http": "info",
+        "fc.net.wifi": "info",
+        "fc.net.time": "warning",
+        "fc.net.http": "warning",
         "fc.net.http.server.req_resp": "debug",
-        "fc.config": "info",
+        "fc.config": "debug",
         "fc.modload": "info"
     }
 }

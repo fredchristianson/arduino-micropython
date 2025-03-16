@@ -5,12 +5,12 @@ import _thread
 from fc import datetime
 import logging
 import time
-log = logging.getLogger("fc.time")
+log = logging.getLogger("fc.net.time")
 
 
 
 def update_timezone():
-    retries = 5
+    retries = 10
     while retries > 0:
         try:
             resp = urequests.get('http://worldtimeapi.org/api/ip') 
@@ -27,9 +27,8 @@ def update_timezone():
             if retries <= 0:
                 log.exception(f"update time failed.  done retrying",exc_info=ex)   
                 return
-            log.exception(f"update time failed.  will retry {retries} more times",exc_info=ex)   
-
-            time.sleep(2)
+            log.info(f"update time failed.  will retry {retries} more times")   
+            time.sleep(4)
             
 def update_time():
     try:
@@ -43,5 +42,5 @@ def update_time():
 
         
 
-def update():
+async def update():
     _thread.start_new_thread(update_time,())

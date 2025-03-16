@@ -5,19 +5,24 @@ log = logging.getLogger("fc.config")
 
 
 
-class Config:
-    def __init__(self,vals = {},parent=None):
-        log.debug(f"Config {vals}")
+class Config(dict):
+    def __init__(self,vals = {},parent=None,depth=0):
+        super().__init__()
+        tabs = '\t\t\t\t\t\t\t\t'[0:depth]
+        log.debug(f"{tabs}Config {vals}")
         self._values = vals
         self._parent = parent
         for k in self._values.keys():
-            (f"key {k}")
+            log.debug(f"{tabs}key {k}")
             if type(self._values[k]) == dict:
-                self._values[k] = Config(self._values[k])
+                log.debug(f"{tabs}dict")
+                self._values[k] = Config(self._values[k],self,depth+1)
             elif type(self._values[k]) == list:
+                log.debug(f"{tabs}list")
                 for i in range(len(self._values[k])):
                     if type(self._values[k][i]) == dict:
-                        self._values[k][i] = Config(self._values[k][i])
+                        self._values[k][i] = Config(self._values[k][i],self,depth+1)
+        log.debug(f"{tabs}done")
           
     def save(self):
         self._parent.save()
@@ -51,8 +56,12 @@ class Config:
             val = val[level]
         if levels[-1] in val:
             del val[levels[-1]]
+            
+    def keys(self):
+        return self._values.keys()
     
     def __getitem__(self,key):
+        print(f"get item {key}")
         return self.get(key)
     
     def __setitem__(self,key,val):
@@ -66,6 +75,7 @@ class Config:
         return self.get(name)
     
     def __iter__(self):
+        print("iter)")
         return iter(self._values)
     
     def __len__(self):
@@ -78,7 +88,7 @@ class Config:
         return repr(self._values)
     
     def __str__(self):
-        return f"{Config}: {self._values}"
+        return f"{self._values}"
    
 class RootConfig(Config):
     def __init__(self,values,file):
@@ -105,8 +115,9 @@ def load(file="/data/config.json"):
         with open(file) as f:
             vals = json.load(f)
             config = RootConfig(vals,file)
-            log.debug(f"config: {config._values} .  memfree: {gc.mem_free()}")
+            #log.debug(f"config: {config._values} .  memfree: {gc.mem_free()}")
+            print(f"config: {config._values} .  memfree: {gc.mem_free()}")
             return config
     except Exception as e:
-        log.exception(f"Failed to load config file {file}",e)
+        log.exception(f"Failed to load config file {file}",exc_info=e)
         return Config()

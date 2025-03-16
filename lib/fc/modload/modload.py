@@ -6,7 +6,6 @@ import gc
 
 class loader:
     def __init__(self, *module_names):
-        print(f'load {module_names}')
         self.module_names = module_names 
         self.modules = []
 

@@ -6,6 +6,7 @@ import gc
 
 log = logging.getLogger("fc.app")
 
+log.always("Loading app========================================")
 
 class App:
     instance = None
@@ -15,21 +16,20 @@ class App:
         return App.instance
     
     def __init__(self, name="<unnamed app>"):
-        from fc.config import load_config
+        from fc.config import load as load_config
         log.info("App created")
         App.instance = self
         self._config = load_config("/data/config.json")
         App.CONFIG = self._config
-        log.never(f"config: {self._config._values}")
+        log.always(f"config: {App.CONFIG}")
         self.is_set_up = False
         self.name = name
         loop = asyncio.get_event_loop()
         loop.set_exception_handler(lambda loop,context: self.exception_handler(loop,context))
         self._debug = self._config.get('app.debug',False)
-        # TODO: allow gc threshold to be set in config
-        gc.threshold(1024*16)  # allocate when 16k have been freed
+        gc.threshold(self._config.get('app.gc_threshold',32*1024))  # allocate when 16k have been freed
         gc.collect()
-        
+
         
     def get_name(self):
         return self.name
