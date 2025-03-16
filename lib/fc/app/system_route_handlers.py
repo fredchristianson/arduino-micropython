@@ -53,19 +53,14 @@ def config_page(req):
         body.h1(message)
         form = body.form()
         text = json.dumps(config)
-        log.debug(f"Config: {text}")
         form.textarea('config',text,class_='json')
         form.input("submit","Save","submit")
-        log.debug("return doc")
         return doc
     
 def update_config(req):
     with loader('fc.app') as app:
-        log.debug(f"Req data: {req}")
         config = req['data']['config'] # {k[8:]:req.data[k] for k in req.data.keys() if k.startswith('config--')}
-        log.debug(f"config: {type(config)} {config}")
         vals = json.loads(config)
-        log.debug(f"Vals: {vals}")
         app.App.CONFIG.set_values(vals)
         #return await self.config_page(req,"Configuration Updated")
         return Redirect('/config_updated.html')

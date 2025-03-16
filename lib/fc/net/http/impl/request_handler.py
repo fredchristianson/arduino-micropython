@@ -86,12 +86,9 @@ async def parse_headers(reader):
 
 async def parse_form_data(reader,len):
     line = await reader.read(len)
-    log.always(f"parse_form_data: {line}")
     line = url_decode(line)
-    log.always(f"decoded: {line}")
     
     data = parse_params(line)
-    log.always(f"data: {data}")
     return data
 
 
@@ -124,14 +121,10 @@ async def find_handler(routers,req):
 
     for router_def in routers:
         rpath = router_def['path'] if 'path' in router_def else ''
-        log.info(f"check {path} with router_def {rpath}")
         router = router_def['router']
-        log.info(f"router: {router}")
         for route in router['routes']:
             p=join_path(rpath,route['path']).rstrip('/')
-            log.info(f"check {method}=={route['method']}  {path}=={p}")
             if p == path and route['method'] == method:
-                log.info(f"found {route}")
                 return route['handler'] if 'handler' in route else route
     return None
 
@@ -184,7 +177,7 @@ def find_file_handler(path):
     if not path.startswith('/html'):
         path = join_path('/html',path)
     try:
-        log.always(f"Trying to find file {path}")
+        log.debug(f"Trying to find file {path}")
         os.stat(path)
         return FileReader(path)
     except Exception as ex:
